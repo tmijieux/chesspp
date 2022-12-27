@@ -16,10 +16,23 @@ set(chess_src
   evaluation.hpp
   engine.hpp
   engine.cpp
+  timer.hpp
+  timer.cpp
+  move_ordering.hpp
+  move_ordering.cpp
+  uci.hpp
+  uci.cpp
 )
+
 #add_executable(chess WIN32 ${chess_src})
 add_executable(chess  ${chess_src})
-target_link_libraries(chess PUBLIC SDL2::SDL2 SDL2_image::SDL2_image)
+target_link_libraries(chess
+  PUBLIC
+  SDL2::SDL2 SDL2_image::SDL2_image
+
+  PRIVATE
+  fmt::fmt-header-only
+)
 target_compile_features(chess PRIVATE cxx_std_20)
 
 

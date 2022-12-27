@@ -3,6 +3,7 @@
 
 #include "./FenReader.hpp"
 #include "./types.hpp"
+#include "./move_generation.hpp"
 
 Piece get_piece_by_char(char c)
 {
@@ -30,6 +31,18 @@ Piece get_piece_by_char(char c)
     }
 }
 
+char get_fen_char_by_piece(Piece c)
+{
+    switch (c) {
+    case P_PAWN: return'p';
+    case P_ROOK: return'r';
+    case P_BISHOP: return'b';
+    case P_KNIGHT: return'n';
+    case P_QUEEN: return'q';
+    case P_KING: return  'k';
+    default: return ' ';
+    }
+}
 
 Color get_color_by_char(char c)
 {
@@ -203,4 +216,73 @@ void FenReader::load_position(Board &b, const std::string&fen_position) const
     int full_move = -1;
     reader >> full_move;
     b.set_full_move(full_move);
+}
+
+
+std::string write_fen_position(const Board& b)
+{
+    constexpr int len = 8 * 8 + 7 + 40;
+    char buf[len] = "";
+    std::memset(buf, 0, sizeof buf);
+
+    int x = 0;
+    for (int32_t row = 7; row >= 0; --row) {
+        int num_empty = 0;
+        for (int32_t col = 0; col < 8; ++col) {
+            auto pos = Pos{ row, col };
+            Piece p = b.get_piece_at(pos);
+            if (p != P_EMPTY) {
+                if (num_empty > 0) {
+                    char c = '0' + num_empty;
+                    buf[x++] = c;
+                    num_empty = 0;
+                }
+                char c = get_fen_char_by_piece(p);
+                if (b.get_color_at(pos) == C_WHITE) {
+                    c += 'A' - 'a';
+                }
+                buf[x++] = c;
+            }
+            else {
+                ++num_empty;
+            }
+        }
+        if (num_empty > 0) {
+            char c = '0' + num_empty;
+            buf[x++] = c;
+        }
+        if (row > 0) {
+            buf[x++] = '/';
+        }
+    }
+    buf[x++] = ' ';
+    buf[x++] = b.get_next_move() == C_WHITE ? 'w' : 'b';
+    buf[x++] = ' ';
+
+    char castlingChars[4] = { 'K','Q','k','q' };
+    bool hasCastling = false;
+    for (int i = 0; i < 4; ++i) {
+        if (b.get_castle_rights((CasleRightIndex)i)) {
+            buf[x++] = castlingChars[i];
+            hasCastling = true;
+        }
+    }
+    if (!hasCastling) {
+        buf[x++] = '-';
+    }
+    buf[x++] = ' ';
+    auto eppos = b.get_en_passant_pos();
+    if (eppos.row != -1) {
+        std::string v = pos_to_square_name(eppos);
+        for (auto i = 0; i < v.size(); ++i) {
+            buf[x++] = v[i];
+        }
+    }
+    else {
+        buf[x++] = '-';
+    }
+    buf[x++] = ' ';
+    buf[x] = 0;
+    auto val = std::string(buf);
+    return val + std::to_string((int)b.get_half_move())+" "+std::to_string(b.get_full_move());
 }

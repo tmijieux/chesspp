@@ -9,11 +9,13 @@ void Board::load_position(const std::string& fen_position)
 {
     FenReader r;
     r.load_position(*this, fen_position);
+    m_position = fen_position;
 }
 
 void Board::load_initial_position()
 {
     load_position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    //load_position("rnbqkbnr/p4ppp/4p3/1pp5/P1pP4/4PN2/1P3PPP/RNBQKB1R w KQkq - 0 1");
 }
 
 Piece Board::get_piece_at(const Pos& pos) const {
@@ -50,61 +52,21 @@ void Board::set_piece_at(const Pos& pos, Piece p, Color c) {
     }
 }
 
-bool Board::is_square_attacked(const Pos &p, Color clr) const
+bool Board::is_square_attacked(const Pos &p, Color attacked_by_clr) const
 {
-    Color enemy = other_color(clr);
-    {
-        MoveList moveList;
-        generate_bishop_move(*this, p, clr, moveList, true);
-        for (const auto& m : moveList) {
-            if (m.taken_piece == P_BISHOP || m.taken_piece == P_QUEEN)
-                return true;
-        }
-    }
-    {
-        MoveList moveList;
-        generate_rook_move(*this, p, clr, moveList, true);
-        for (const auto& m : moveList) {
-            if (m.taken_piece == P_ROOK || m.taken_piece == P_QUEEN)
-                return true;
-        }
-    }
-    {
-        MoveList moveList;
-        generate_knight_move(*this, p, clr, moveList, true);
-        for (const auto& m : moveList) {
-            if (m.taken_piece == P_KNIGHT)
-                return true;
-        }
-    }
-    {
-        MoveList moveList;
-        generate_pawn_move(*this, p, clr, moveList, true, false);
-        for (const auto& m : moveList) {
-            if (m.taken_piece == P_PAWN)
-                return true;
-        }
-    }
-    {
-        MoveList moveList;
-        // maxdist = 1 for enemy king
-        generate_queen_move(*this, p, clr, moveList, 1, true);
-        for (const auto& m : moveList) {
-            if (m.taken_piece == P_KING)
-                return true;
-        }
-    }
-    return false;
+    MoveList ml;
+    find_move_to_position(*this, p, ml, attacked_by_clr, 1, false, true);
+    return ml.size() == 1;
 }
 
 bool Board::compute_king_checked(Color clr) const
 { // start from king position and do 'inversed-move' of all type of piece
   // to see if we land on a threatening piece
     Pos p = m_king_pos[clr >> 4];
-    return is_square_attacked(p, clr);
+    MoveList ml;
+    find_move_to_position(*this, p, ml, other_color(clr), 1, true, false);
+    return ml.size() == 1;
 }
-
-
 
 void Board::make_move(const Move& move)
 {
@@ -148,7 +110,6 @@ void Board::make_move(const Move& move)
         set_castle_rights(isWhite ? CR_QUEEN_WHITE : CR_QUEEN_BLACK, false);
     }
 
-
     if (move.takes || move.piece == P_PAWN) {
         m_half_move_counter = 0;
     }
@@ -168,6 +129,8 @@ void Board::make_move(const Move& move)
     m_king_checked[1] = compute_king_checked(C_WHITE);
 
     m_next_to_move = other_color(m_next_to_move);
+
+    m_position = write_fen_position(*this);
 }
 
 void Board::unmake_move(const Move& move)
@@ -202,14 +165,17 @@ void Board::unmake_move(const Move& move)
     m_half_move_counter = move.half_move_before;
     m_king_checked[0] = move.checks_before[0];
     m_king_checked[1] = move.checks_before[1];
-    m_castle_rights[CR_KING_BLACK] = move.castles_rights_before[CR_KING_BLACK];
+
     m_castle_rights[CR_KING_WHITE] = move.castles_rights_before[CR_KING_WHITE];
-    m_castle_rights[CR_QUEEN_BLACK] = move.castles_rights_before[CR_QUEEN_BLACK];
     m_castle_rights[CR_QUEEN_WHITE] = move.castles_rights_before[CR_QUEEN_WHITE];
+    m_castle_rights[CR_KING_BLACK] = move.castles_rights_before[CR_KING_BLACK];
+    m_castle_rights[CR_QUEEN_BLACK] = move.castles_rights_before[CR_QUEEN_BLACK];
+
 
     if (move.color == C_BLACK) {
         --m_full_move_counter;
     }
     m_next_to_move = move.color;
+    //m_position = move.position_before;
 
 }

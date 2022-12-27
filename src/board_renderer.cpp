@@ -108,13 +108,15 @@ void BoardRenderer::console_draw(const Board &board) const
     }
 }
 
-BoardRenderer::BoardRenderer():
+BoardRenderer::BoardRenderer() :
     m_window(nullptr),
     m_renderer(nullptr),
     m_piece_tex_white{ nullptr },
     m_piece_tex_black{ nullptr },
-
-    m_need_redraw{true}
+    m_move_event{ 0 },
+    m_history_mode{ false },
+    m_current_history_pos{ 0 },
+    m_need_redraw{ true }
 {
     std::fill(std::begin(m_piece_tex_white), std::end(m_piece_tex_white), nullptr);
     std::fill(std::begin(m_piece_tex_black), std::end(m_piece_tex_black), nullptr);
@@ -127,13 +129,14 @@ void BoardRenderer::init()
     m_renderer = SDL_CreateRenderer(m_window, -1, SDL_RENDERER_ACCELERATED);
     IMG_Init(IMG_INIT_PNG);
 
+    m_move_event = SDL_RegisterEvents(1);
+    std::cout << "move_event="<<m_move_event<<"\n";
+
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
 
     for (uint8_t t = P_MIN_PIECE; t <= P_MAX_PIECE; ++t) {
         std::string path_white = std::string("../../assets/pngs/") + piece_path_white[t];
         std::string path_black = std::string("../../assets/pngs/") + piece_path_black[t];
-
-
         m_piece_tex_black[t] = IMG_LoadTexture(m_renderer, path_black.c_str());
         m_piece_tex_white[t] = IMG_LoadTexture(m_renderer, path_white.c_str());
     }
@@ -216,17 +219,86 @@ void BoardRenderer::draw(const Board& board) const
     SDL_RenderPresent(m_renderer);
 }
 
+void BoardRenderer::prepare_player_move(Board &b, SDL_Event &e)
+{
+    if (m_history_mode) {
+        std::cout << "in history mode!\n";
+        return;
+    }
+    int col = e.button.x / 80;
+    int row = 7 - (e.button.y / 80);
+    Pos pos{ row, col };
+    Color clr = b.get_color_at(pos);
+    Color to_move = b.get_next_move();
+
+    if (clr == to_move) {
+        m_candidates_moves.clear();
+        add_move_from_position(b, pos, m_candidates_moves, false);
+
+        for (auto& m : m_candidates_moves)
+        {
+            b.make_move(m);
+            m.legal = !b.is_king_checked(to_move);
+            b.unmake_move(m);
+        }
+        m_need_redraw = true;
+    }
+}
+
+void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
+{
+    if (m_history_mode) {
+        std::cout << "in history mode!\n";
+        return;
+    }
+    int col = e.button.x / 80;
+    int row = 7 - (e.button.y / 80);
+    Pos pos{ row, col };
+
+    bool player_move_done = false;
+    for (const auto& m : m_candidates_moves) {
+        if (m.legal && pos == m.dst) {
+            b.make_move(m);
+            m_history.push_back(b);
+
+            player_move_done = true;
+            break;
+        }
+    }
+    m_candidates_moves.clear();
+
+    if (player_move_done) {
+        draw(b);
+
+        auto [found, move] = find_best_move(b);
+        if (!found) {
+            std::cout << "no move was found\n";
+            if (b.is_king_checked(b.get_next_move())) {
+                std::cout << "because is checkmated\n";
+            }
+            else {
+                std::cout << "pat!\n";
+            }
+        }
+        else {
+            b.make_move(move);
+            m_history.push_back(b);
+        }
+    }
+    m_need_redraw = true;
+}
+
 void BoardRenderer::main_loop(Board &b)
 {
     bool quit = false;
     bool down = false;
+    m_history.push_back(b);
     
     while (!quit)
     {
         SDL_Event e;
         while (SDL_PollEvent(&e) != 0)
         {
-     
             // User requests quit
             if (e.type == SDL_QUIT)
             {
@@ -236,53 +308,11 @@ void BoardRenderer::main_loop(Board &b)
 
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
             {
-                int col = e.button.x / 80;
-                int row = 7 - (e.button.y / 80);
-                Pos pos{ row, col };
-                Color clr = b.get_color_at(pos);
-                Color to_move = b.get_next_move();
-
-                if (clr == to_move) {
-                    m_candidates_moves.clear();
-                    add_move_for_position(b, pos, m_candidates_moves, false);
-
-                    for (auto& m : m_candidates_moves)
-                    {
-                        b.make_move(m);
-                        m.legal = !b.is_king_checked(to_move);
-                        b.unmake_move(m);
-                    }
-                    m_need_redraw = true;
-                }
+                prepare_player_move(b, e);
             }
             else if (e.type == SDL_MOUSEBUTTONUP && e.button.button == SDL_BUTTON_LEFT)
             {
-                int col = e.button.x / 80;
-                int row = 7 - (e.button.y / 80);
-                Pos pos{ row, col };
-
-                bool move_done = false;
-                for (const auto& m : m_candidates_moves) {
-                    if (m.legal && pos == m.dst) {
-                        b.make_move(m);
-                        move_done = true;
-                        break;
-                    }
-                }
-                m_candidates_moves.clear();
-
-                if (move_done) {
-                    draw(b);
-
-                    auto [found, move] = find_best_move(b);
-                    if (!found) {
-                        std::cout << "erreur no move was found\n";
-                    }
-                    else {
-                        b.make_move(move);
-                    }
-                }
-                m_need_redraw = true;
+                do_player_move(b, e);
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_r)
             {
@@ -290,9 +320,42 @@ void BoardRenderer::main_loop(Board &b)
                 m_candidates_moves.clear();
                 m_need_redraw = true;
             }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_s)
+            {
+                std::cout << "current position= " << b.get_pos_string() << "\n";
+                std::cout << "current val = " << b.get_full_move() << "\n";
+            }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_e)
+            {
+                std::cout << "current eval= " << evaluate_board(b) << "\n";
+            }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_LEFT)
+            {
+                if (!m_history_mode && m_history.size() > 1) {
+                    m_history_mode = true;
+                    m_current_history_pos = m_history.size() - 2;
+                }
+                else if (m_history_mode && m_current_history_pos >= 1) {
+                    m_current_history_pos = std::max(m_current_history_pos - 1ull, (uint64_t)0);
+                }
+                draw(m_history[m_current_history_pos]);
+            }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RIGHT)
+            {
+                if (m_history_mode) {
+                    m_current_history_pos = std::min(m_current_history_pos + 1, m_history.size()-1);
+
+                    if (m_current_history_pos == m_history.size() - 1) {
+                        m_history_mode = false;
+                    }
+                    draw(m_history[m_current_history_pos]);
+                }
+            }
 
             if (m_need_redraw) {
                 m_need_redraw = false;
+                m_history_mode = false;
+                m_current_history_pos = m_history.size() - 1;
                 draw(b);
             }
         }

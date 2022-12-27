@@ -1,5 +1,9 @@
 #include <iostream>
+#include <unordered_map>
+
 #include "./move_generation.hpp"
+#include "./engine.hpp"
+#include "./evaluation.hpp"
 
 Move::Move(const Board &b) : Move()
 {
@@ -13,6 +17,7 @@ Move::Move(const Board &b) : Move()
 
     en_passant_pos_before = b.get_en_passant_pos();
     half_move_before = b.get_half_move();
+    //position_before = b.get_pos_string();
 }
 
 bool can_en_passant(const Board &b, const Pos &src, const Pos &dst) {
@@ -27,7 +32,9 @@ bool can_en_passant(const Board &b, const Pos &src, const Pos &dst) {
     return false;
 }
 
-void generate_pawn_move(const Board& b, const Pos& pos, Color clr, MoveList& moveList, bool only_takes, bool attacks)
+void generate_pawn_move(
+    const Board& b, const Pos& pos, Color clr,
+    MoveList& moveList, bool only_takes, bool pawn_attacks)
 {
     int offset = clr == C_WHITE ? +1 : -1;
     int nextRow = pos.row + offset;
@@ -35,12 +42,13 @@ void generate_pawn_move(const Board& b, const Pos& pos, Color clr, MoveList& mov
     Pos dst{ nextRow, pos.column };
     bool can_promote = (nextRow == 7 && clr == C_WHITE) || (nextRow == 0 && clr==C_BLACK);
 
-    if (b.get_piece_at(dst) == P_EMPTY && !attacks && !only_takes) {
+    if (b.get_piece_at(dst) == P_EMPTY && !pawn_attacks && !only_takes)
+    {
         Move m{ b };
         m.src = pos;
         m.dst = dst;
         m.takes = false;
-        m.piece = P_PAWN;
+        m.piece = b.get_piece_at(pos);
         m.color = clr;
 
         m.promote = can_promote;
@@ -49,16 +57,16 @@ void generate_pawn_move(const Board& b, const Pos& pos, Color clr, MoveList& mov
 
         // initial pawn 2 square move
         Pos dst2{ nextRow+offset, pos.column };
-        if (((pos.row == 1 && clr == C_WHITE) 
-             || (pos.row == 6 && clr == C_BLACK)) 
+        if (((pos.row == 1 && clr == C_WHITE)
+             || (pos.row == 6 && clr == C_BLACK))
             && b.get_piece_at(dst2) == P_EMPTY) {
             Move m2{ b };
             m2.src = pos;
             m2.dst = dst2;
             m2.takes = false;
-            m2.piece = P_PAWN;
+            m2.piece = b.get_piece_at(pos);
             m2.color = clr;
-            
+
             moveList.emplace_back(m2);
         }
     }
@@ -66,18 +74,26 @@ void generate_pawn_move(const Board& b, const Pos& pos, Color clr, MoveList& mov
     Pos dsts[2];
     dsts[0] = Pos(nextRow, pos.column - 1);
     dsts[1] = Pos(nextRow, pos.column + 1);
-    for (auto dst : dsts) {
-        bool en_passant = can_en_passant(b, pos, dst);
-        if (dst.row < 0 || dst.row >7 || dst.column < 0 || dst.column > 7) {
+    for (const auto &dst : dsts) {
+        if (dst.row < 0 || dst.row > 7 || dst.column < 0 || dst.column > 7) {
             continue;
         }
-        if ( b.get_color_at(dst) == other_color(clr) || attacks || en_passant) {
+        Color dst_color = b.get_color_at(dst);
+        bool en_passant = can_en_passant(b, pos, dst);
+        if (dst_color == other_color(clr)
+            || (pawn_attacks && dst_color == P_EMPTY && !only_takes)
+            || en_passant)
+        {
+
             Move m{ b };
             m.src = pos;
             m.dst = dst;
             m.takes = true;
-            m.piece = P_PAWN;
+            m.piece = b.get_piece_at(pos);
             m.taken_piece = b.get_piece_at(dst);
+            if (en_passant) {
+                m.taken_piece = P_PAWN;
+            }
             m.color = clr;
             m.en_passant = en_passant;
             m.promote = can_promote;
@@ -86,19 +102,23 @@ void generate_pawn_move(const Board& b, const Pos& pos, Color clr, MoveList& mov
         }
     }
 }
+
 struct Direction {
-    Pos direction_vector;
+    Pos offset;
     int maxrange;
 };
 
-void generate_move_for_direction(const Board& b, const Pos& initial_pos, Color clr, const Direction& dir, MoveList& moveList, bool only_takes)
+void generate_move_for_direction(
+    const Board& b, const Pos& initial_pos, Color clr,
+    const Direction& dir, MoveList& moveList, bool only_takes)
 {
     Pos pos = initial_pos;
     Piece piece = b.get_piece_at(initial_pos);
+
     for (int distance = 1; distance <= dir.maxrange; ++distance) {
         bool takes = false;
-        pos.row = initial_pos.row + distance * dir.direction_vector.row;
-        pos.column = initial_pos.column + distance * dir.direction_vector.column;
+        pos.row = initial_pos.row + distance * dir.offset.row;
+        pos.column = initial_pos.column + distance * dir.offset.column;
         if (pos.row < 0 || pos.row >7 || pos.column < 0 || pos.column > 7) {
             break;
         }
@@ -130,7 +150,9 @@ void generate_move_for_direction(const Board& b, const Pos& initial_pos, Color c
     }
 }
 
-void generate_bishop_move(const Board& b, const Pos& pos, Color clr, MoveList& moveList, bool only_takes)
+void generate_bishop_move(
+    const Board& b, const Pos& pos, Color clr,
+    MoveList& moveList, bool only_takes)
 {
     Direction dirs[4] = {
         { {-1, -1}, 8 },
@@ -138,7 +160,7 @@ void generate_bishop_move(const Board& b, const Pos& pos, Color clr, MoveList& m
         { {+1, -1}, 8 },
         { {+1, +1}, 8 },
     };
-    for (auto& dir : dirs) {
+    for (const auto& dir : dirs) {
         generate_move_for_direction(b, pos, clr, dir, moveList, only_takes);
     }
 }
@@ -194,8 +216,8 @@ void generate_queen_move(const Board& b, const Pos& pos, Color clr, MoveList& mo
 }
 
 
-
-void castle_king_side(const Board& b, const Pos& pos, Color clr, MoveList& moveList)
+void castle_king_side(
+    const Board& b, const Pos& pos, Color clr, MoveList& moveList)
 {
     auto idxKing = clr == C_WHITE ? CR_KING_WHITE : CR_KING_BLACK;
     if (!b.get_castle_rights(idxKing)) {
@@ -209,7 +231,7 @@ void castle_king_side(const Board& b, const Pos& pos, Color clr, MoveList& moveL
     }
 
     for (int i = 4; i <= 6; ++i) {
-        if (b.is_square_attacked(Pos{ pos.row, i }, clr))
+        if (b.is_square_attacked(Pos{ pos.row, i }, other_color(clr)))
         {
             return;
         }
@@ -229,7 +251,8 @@ void castle_king_side(const Board& b, const Pos& pos, Color clr, MoveList& moveL
     moveList.emplace_back(OO);
 }
 
-void castle_queen_side(const Board& b, const Pos& pos, Color clr, MoveList& moveList)
+void castle_queen_side(
+    const Board& b, const Pos& pos, Color clr, MoveList& moveList)
 {
     auto idxQueen = clr == C_WHITE ? CR_QUEEN_WHITE : CR_QUEEN_BLACK;
     if (!b.get_castle_rights(idxQueen)) {
@@ -241,12 +264,12 @@ void castle_queen_side(const Board& b, const Pos& pos, Color clr, MoveList& move
         }
     }
     for (int i = 4; i >= 2; --i) {
-        if (b.is_square_attacked( Pos{ pos.row, i }, clr))
+        if (b.is_square_attacked( Pos{ pos.row, i }, other_color(clr)))
         {
             return;
         }
     }
- 
+
     Move OOO{ b };
     OOO.src = pos;
     OOO.dst = Pos{ pos.row, pos.column - 2 };
@@ -256,16 +279,95 @@ void castle_queen_side(const Board& b, const Pos& pos, Color clr, MoveList& move
     moveList.emplace_back(OOO);
 }
 
-void generate_castle_move(const Board& b, const Pos& pos, Color clr, MoveList& moveList)
+void generate_castle_move(
+    const Board& b, const Pos& pos, Color clr, MoveList& moveList)
 {
     castle_king_side(b, pos, clr, moveList);
     castle_queen_side(b, pos, clr, moveList);
 }
 
 
-void add_move_for_position(
-    const Board &b, const Pos & pos, 
-    MoveList &moveList, bool only_takes, bool attacks)
+void find_move_to_position(
+    const Board& b, const Pos& pos, MoveList& moveList,
+    Color move_clr, int16_t max_move, bool only_takes, bool pawn_attacks)
+{
+    // generate "reversed move" starting from destination and other color
+    // and then "reverse" the moves
+
+    Color enemy_clr = other_color(move_clr);
+
+    {
+        MoveList tmpList;
+        generate_bishop_move(b, pos, enemy_clr, tmpList, only_takes);
+        for (const auto& m : tmpList)
+        {
+            if (m.taken_piece == P_BISHOP || m.taken_piece == P_QUEEN)
+            {
+                moveList.emplace_back(m.reverse());
+                if (max_move > 0 && moveList.size() >= max_move) {
+                    return;
+                }
+            }
+        }
+    }
+
+    {
+        MoveList tmpList;
+        generate_rook_move(b, pos, enemy_clr, tmpList, only_takes);
+        for (const auto& m : tmpList) {
+            if (m.taken_piece == P_ROOK || m.taken_piece == P_QUEEN) {
+                moveList.emplace_back(m.reverse());
+                if (max_move > 0 && moveList.size() >= max_move) {
+                    return;
+                }
+            }
+        }
+    }
+
+    {
+        MoveList tmpList;
+        generate_knight_move(b, pos, enemy_clr, tmpList, only_takes);
+        for (const auto& m : tmpList) {
+            if (m.taken_piece == P_KNIGHT)
+                moveList.emplace_back(m.reverse());
+        }
+    }
+
+    {
+        MoveList tmpList;
+        generate_pawn_move(b, pos, enemy_clr, tmpList, only_takes, pawn_attacks);
+        for (const auto& m : tmpList)
+        {
+            if (m.taken_piece == P_PAWN)
+            {
+                moveList.emplace_back(m.reverse());
+                if (max_move > 0 && moveList.size() >= max_move) {
+                    return;
+                }
+            }
+        }
+    }
+
+    {
+        MoveList tmpList;
+        // maxdist = 1 for enemy king
+        generate_queen_move(b, pos, enemy_clr, tmpList, 1, true);
+        for (const auto& m : tmpList)
+        {
+            if (m.taken_piece == P_KING)
+            {
+                moveList.emplace_back(m.reverse());
+                if (max_move > 0 && moveList.size() >= max_move) {
+                    return;
+                }
+            }
+        }
+    }
+}
+
+void add_move_from_position(
+    const Board &b, const Pos & pos,
+    MoveList &moveList, bool only_takes, bool pawn_attacks)
 {
 
     Piece piece = b.get_piece_at(pos);
@@ -275,7 +377,7 @@ void add_move_for_position(
     }
     switch (piece) {
         case P_PAWN:
-            generate_pawn_move(b, pos, clr, moveList, only_takes, attacks );
+            generate_pawn_move(b, pos, clr, moveList, only_takes, pawn_attacks);
             break;
         case P_BISHOP:
             generate_bishop_move(b, pos, clr, moveList, only_takes);
@@ -312,7 +414,7 @@ MoveList enumerate_moves(const Board& b, bool only_takes)
         if (clr != to_move) {
             continue;
         }
-        add_move_for_position(b, pos, moveList, only_takes, false);
+        add_move_from_position(b, pos, moveList, only_takes, false);
     }
     return moveList;
 }
@@ -326,7 +428,7 @@ MoveList enumerate_attacks(const Board& b, Color to_move)
         if (clr != to_move) {
             continue;
         }
-        add_move_for_position(b, pos, moveList, /*attacks*/true);
+        add_move_from_position(b, pos, moveList, /*attacks*/true);
     }
     return moveList;
 }
@@ -349,8 +451,13 @@ std::string pos_to_square_name(const Pos& p) {
     s[0] = ('a' + p.column);
     return std::string(s) + std::to_string((int)(p.row+1));
 }
-
-char get_char_by_piece2(Piece p)
+Pos square_name_to_pos(const std::string& s) {
+    return Pos{
+        s[1] - '1',
+        s[0] - 'a'
+    };
+}
+char get_char_by_piece_pgn(Piece p)
 {
     switch (p) {
         case P_PAWN: return 'p';
@@ -360,12 +467,12 @@ char get_char_by_piece2(Piece p)
         case P_QUEEN: return 'q';
         case P_KING: return 'k';
         case P_EMPTY: return ' ';
-        default:
-            return 'X';
+        default: return 'X';
     }
 }
 
-std::string move_to_string(const Move& m) {
+std::string move_to_string(const Move& m) 
+{
     std::string res = "";
 
     res += piece_to_move_letter(m.piece);
@@ -375,7 +482,7 @@ std::string move_to_string(const Move& m) {
     res += pos_to_square_name(m.dst);
     if (m.takes) {
         char q[2] = { 0 };
-        q[0] = get_char_by_piece2(m.taken_piece);
+        q[0] = get_char_by_piece_pgn(m.taken_piece);
         res += " ( takes " +std::string(q) + ")";
     }
     if (m.takes && m.piece == P_PAWN) {
@@ -384,18 +491,8 @@ std::string move_to_string(const Move& m) {
     return res;
 }
 
-
-void reorder_moves(MoveList &moveList, int currentDepth, const MoveList& previousPv)
+std::string move_to_uci_string(const Move& m)
 {
-    if (currentDepth < previousPv.size()) {
-        const Move& bestMove = previousPv[currentDepth];
-
-        for (int i = 0; i < moveList.size(); ++i) {
-            
-            if (moveList[i] == bestMove && i > 0) {
-                std::swap(moveList[0], moveList[i]);
-            }
-        }
-    }
+    return pos_to_square_name(m.src) + pos_to_square_name(m.dst);
 }
 

@@ -27,22 +27,33 @@ enum Color : uint8_t {
 inline Color other_color(Color c) { return (Color)(0x18 - (uint8_t)c); }
 
 enum CasleRightIndex: int8_t {
-    CR_QUEEN_BLACK = 0,
-    CR_KING_BLACK = 1,
-    CR_QUEEN_WHITE = 2,
-    CR_KING_WHITE = 3,
+    CR_KING_WHITE = 0,
+    CR_QUEEN_WHITE = 1,
+    CR_KING_BLACK = 2,
+    CR_QUEEN_BLACK = 3,
 };
+
 
 struct Pos {
 public:
+    // signed row:6;
+    // signed column:6;
     int8_t row;
     int8_t column;
+
     Pos(int row_, int column_) :row(row_), column(column_) {}
     Pos() :Pos(-1, -1) {}
 
     bool operator==(const Pos& o) {
         return row == o.row && column == o.column;
     }
+
+    Pos& operator=(const Pos& o) {
+        column = o.column;
+        row = o.row;
+        return *this;
+    }
+
 };
 
 

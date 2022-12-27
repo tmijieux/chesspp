@@ -12,4 +12,7 @@ private:
 
 }; // class Fenreader
 
+std::string write_fen_position(const Board& b);
+
+
 #endif // CHESS_FEN_READER_H

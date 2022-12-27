@@ -23,20 +23,22 @@ private:
     Color m_next_to_move;
     bool m_castle_rights[4];
     uint8_t m_half_move_counter; // for 50 moves rule
-    uint8_t m_full_move_counter;
+    uint32_t m_full_move_counter;
 
     Pos m_en_passant_pos;
     bool m_king_checked[2]; // 0 black,  1 white
     Pos m_king_pos[2]; // 0 black,  1 white
 
     bool compute_king_checked(Color) const;
+    std::string m_position;
 
 public:
     Board():
         m_next_to_move{C_INVALID_COLOR},
         m_half_move_counter{0},
         m_full_move_counter{1},
-        m_en_passant_pos{-1,-1}
+        m_en_passant_pos{-1,-1},
+        m_position{}
     {
         std::fill(std::begin(m_board), std::end(m_board), 0);
         std::fill(std::begin(m_castle_rights), std::end(m_castle_rights), false);
@@ -50,9 +52,10 @@ public:
     bool get_castle_rights(CasleRightIndex idx) const  { return m_castle_rights[(uint8_t)idx]; }
     Pos get_en_passant_pos() const  { return m_en_passant_pos; }
     uint8_t get_half_move() const { return m_half_move_counter ; }
-    uint8_t get_full_move() const { return m_full_move_counter ; }
+    uint32_t get_full_move() const { return m_full_move_counter ; }
     bool is_king_checked(Color clr) const { return m_king_checked[clr >> 4]; }
-
+    const Pos& get_king_pos(Color clr) const { return m_king_pos[clr >> 4]; }
+    const std::string& get_pos_string() const { return m_position; }
     bool is_square_attacked(const Pos& pos, Color clr) const;
 
 
