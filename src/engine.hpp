@@ -3,11 +3,14 @@
 
 #include <map>
 #include <unordered_map>
+#include <algorithm>
+#include <thread>
 
 #include "./timer.hpp"
 #include "./board.hpp"
 #include "./move_generation.hpp"
 #include "./evaluation.hpp"
+#include "./uci.hpp"
 
 struct Stats {
     int32_t num_cutoffs;
@@ -68,12 +71,6 @@ private:
 
     uint64_t m_total_nodes;
     uint64_t m_total_quiescence_nodes;
-
-public:
-    bool m_required_stop;
-    bool m_running;
-
-private:
     void reset_timers()
     {
         m_evaluation_timer.reset();
@@ -89,22 +86,39 @@ private:
         m_unmake_move2_timer.reset();
     }
 
+    bool m_uci_mode;
+    GoParams m_uci_go_params;
+    std::thread m_thread;
+    bool m_stop_required;
+    bool m_running;
+
+    void _start_uci_background(Board& b);
+public:
+
+    void stop();
+    bool is_running() const { return m_running; }
+    void start_uci_background(Board& b);
+    void set_uci_mode(bool uci_mode, GoParams& params)
+    {
+        m_uci_mode = uci_mode;
+        m_uci_go_params = params;
+    }
+
 
     void display_timers()
     {
-        std::cout << "m_evaluation_time=" << m_evaluation_timer.get_length() << "\n";
-        std::cout << "m_move_ordering_time=" << m_move_ordering_timer.get_length() << "\n";
-        std::cout << "m_move_ordering_mvv_lva_time=" << m_move_ordering_mvv_lva_timer.get_length() << "\n";
-
-        std::cout << "m_move_generation_time=" << m_move_generation_timer.get_length() << "\n";
-        std::cout << "m_make_move_time=" << m_make_move_timer.get_length() << "\n";
-        std::cout << "m_unmake_move_time=" << m_unmake_move_timer.get_length() << "\n";
-        std::cout << "---\n";
-        std::cout << "m_quiescence_timer=" << m_quiescence_timer.get_length() << "\n";
-        std::cout << "---\n";
-        std::cout << "m_move_generation2_time=" << m_move_generation2_timer.get_length() << "\n";
-        std::cout << "m_make_move2_time=" << m_make_move2_timer.get_length() << "\n";
-        std::cout << "m_unmake_move2_time=" << m_unmake_move2_timer.get_length() << "\n";
+        std::cerr << "m_evaluation_time=" << m_evaluation_timer.get_length() << "\n";
+        std::cerr << "m_move_ordering_time=" << m_move_ordering_timer.get_length() << "\n";
+        std::cerr << "m_move_ordering_mvv_lva_time=" << m_move_ordering_mvv_lva_timer.get_length() << "\n";
+        std::cerr << "m_move_generation_time=" << m_move_generation_timer.get_length() << "\n";
+        std::cerr << "m_make_move_time=" << m_make_move_timer.get_length() << "\n";
+        std::cerr << "m_unmake_move_time=" << m_unmake_move_timer.get_length() << "\n";
+        std::cerr << "---\n";
+        std::cerr << "m_quiescence_timer=" << m_quiescence_timer.get_length() << "\n";
+        std::cerr << "---\n";
+        std::cerr << "m_move_generation2_time=" << m_move_generation2_timer.get_length() << "\n";
+        std::cerr << "m_make_move2_time=" << m_make_move2_timer.get_length() << "\n";
+        std::cerr << "m_unmake_move2_time=" << m_unmake_move2_timer.get_length() << "\n";
     }
 
 public:
@@ -113,10 +127,10 @@ public:
         m_current_max_depth{ 0 },
         m_total_nodes{ 0 },
         m_total_quiescence_nodes{ 0 },
-        m_required_stop{false},
+        m_uci_mode{false},
+        m_stop_required{false},
         m_running{false}
     {
-
     }
 
     int32_t quiesce(Board& b, int color, int32_t alpha, int32_t beta, int depth);
@@ -132,7 +146,7 @@ public:
         // TranspositionTable &tt,
     );
 
-    void iterative_deepening(
+    bool iterative_deepening(
         Board& b, int max_depth, Move* bestMove, bool* moveFound );
 
     void set_max_depth(int maxdepth)
@@ -164,13 +178,13 @@ public:
 
     void display_cutoffs(int current_maxdepth)
     {
-        std::cout << "cutoffs for current_maxdepth=" << current_maxdepth << "\n";
+        std::cerr << "cutoffs for current_maxdepth=" << current_maxdepth << "\n";
         for (auto& [depth, stats] : m_stats[current_maxdepth]) {
 
             double percent = (double)stats.num_move_visited / std::max(stats.num_move_generated,1);
             double percent2 = (double)stats.num_cutoffs / std::max(stats.num_nodes,1);
 
-            std::cout << "d=" << depth
+            std::cerr << "d=" << depth
                       << "\n   NODES total=" << stats.num_nodes
                       << " leaf="<<stats.num_leaf_nodes
                       << " cutoffs=" << stats.num_cutoffs

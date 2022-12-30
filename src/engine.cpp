@@ -1,4 +1,5 @@
 #include <iostream>
+#include <functional>
 
 #include <fmt/format.h>
 
@@ -8,12 +9,13 @@
 #include "./move.hpp"
 #include "./timer.hpp"
 #include "./evaluation.hpp"
+#include "./uci.hpp"
 
 
 int32_t NegamaxEngine::quiesce(
     Board& b, int color, int32_t alpha, int32_t beta, int current_depth)
 {
-    if (m_required_stop) {
+    if (m_stop_required) {
         return beta; // fail-high immediately
     }
 
@@ -124,7 +126,7 @@ int32_t NegamaxEngine::negamax(
     const MoveList& previousPv,
     MoveList* topLevelOrdering
 ) {
-    if (m_required_stop) {
+    if (m_stop_required) {
         return beta; // fail-high immediately
     }
 
@@ -233,7 +235,7 @@ int32_t NegamaxEngine::negamax(
         move.evaluation = val;
         if (val >= beta) {
             alpha = beta; // cut node ! yay !
-            if (m_required_stop) {
+            if (m_stop_required) {
                 return beta;
             }
             cutoff = true;
@@ -340,10 +342,51 @@ int32_t NegamaxEngine::negamax(
     return alpha;
 }
 
-void NegamaxEngine::iterative_deepening(
+void NegamaxEngine::_start_uci_background(Board &b)
+{
+    bool move_found = false;
+    Move best_move;
+
+    m_running = true;
+    bool interrupted = iterative_deepening(
+        b, 7, &best_move, &move_found
+    );
+    m_running = false;
+
+    if (move_found) {
+        uci_send_bestmove(best_move);
+        move_found = false;
+    }
+    if (!interrupted) {
+        m_thread.detach();
+    }
+    m_stop_required = false;
+}
+
+void NegamaxEngine::start_uci_background(Board &b)
+{
+    if (m_running) {
+        throw std::exception("engine already running");
+    }
+    m_thread = std::thread{
+        std::bind( &NegamaxEngine::_start_uci_background,this, b)
+    };
+}
+
+void NegamaxEngine::stop()
+{
+    if (m_thread.joinable())
+    {
+        m_stop_required = true;
+        m_thread.join();
+    }
+    m_stop_required = false;
+    m_running = false;
+}
+
+bool NegamaxEngine::iterative_deepening(
     Board& b, int max_depth, Move *bestMove, bool *moveFound)
 {
-    m_running = true;
     *moveFound = false;
 
     int color = b.get_next_move() == C_WHITE ? +1 : -1;
@@ -353,79 +396,78 @@ void NegamaxEngine::iterative_deepening(
     this->set_max_depth(max_depth);
 
     for (int depth = 1; depth <= max_depth; ++depth) {
-         MoveList newPv;
-         newPv.reserve(depth);
-         Timer t;
-         t.reset();
-         t.start();
+        MoveList newPv;
+        newPv.reserve(depth);
+        Timer t;
+        t.reset();
+        t.start();
 
-         reset_timers();
-         m_total_nodes = 0;
-         m_total_quiescence_nodes = 0;
+        reset_timers();
+        m_total_nodes = 0;
+        m_total_quiescence_nodes = 0;
 
-         int32_t score = this->negamax(
-             b, depth, depth, 0, color,
-             -999999, // alpha
-             +999999, // beta
-             newPv, previousPv, &topLevelOrdering
-         );
-         //std::cerr << "\n\n-----------------\n";
-         if (m_required_stop) {
-             m_running = false;
-             m_required_stop = false;
-             return;
-         }
-         if (newPv.size() > 0) {
-             //std::cerr << "Best move for depth="
-             //    << depth << "  = " << move_to_string(newPv[0])
-             //    << "\n";
-         }
-         else {
-             *moveFound = false;
-             return;
-         }
+        int32_t score = this->negamax(
+            b, depth, depth, 0, color,
+            -999999, // alpha
+            +999999, // beta
+            newPv, previousPv, &topLevelOrdering
+        );
+        //std::cerr << "\n\n-----------------\n";
+        if (m_stop_required) {
+            return true;
+        }
+        if (newPv.size() > 0) {
+            //std::cerr << "Best move for depth="
+            //    << depth << "  = " << move_to_string(newPv[0])
+            //    << "\n";
+        }
+        else {
+            *moveFound = false;
+            return false;
+        }
 
-         t.stop();
+        t.stop();
 
-         std::vector<std::string> moves_str;
-         // moves_str.reserve(newPv.size());
-         // for (const auto& m : newPv) {
-         //     moves_str.emplace_back(move_to_string(m));
-         // }
-         // std::cout << fmt::format("info string PV = {}\n", fmt::join(moves_str, " "));
+        std::vector<std::string> moves_str;
+        // moves_str.reserve(newPv.size());
+        // for (const auto& m : newPv) {
+        //     moves_str.emplace_back(move_to_string(m));
+        // }
+        // std::cout << fmt::format("info string PV = {}\n", fmt::join(moves_str, " "));
 
 
-         if (depth >= 4) {
+        if (depth >= 4) {
 
-             moves_str.clear();
-             moves_str.reserve(newPv.size());
-             for (const auto& m : newPv) {
-                 moves_str.emplace_back(move_to_uci_string(m));
-             }
-             uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
-             double duration = std::max(t.get_length(), 0.001); // cap at 1ms
-             uint64_t nps = (uint64_t)(total_nodes / duration);
-             uint64_t time = t.get_micro_length() / 1000;
+            moves_str.clear();
+            moves_str.reserve(newPv.size());
+            for (const auto& m : newPv) {
+                moves_str.emplace_back(move_to_uci_string(m));
+            }
+            uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
+            double duration = std::max(t.get_length(), 0.001); // cap at 1ms
+            uint64_t nps = (uint64_t)(total_nodes / duration);
+            uint64_t time = t.get_micro_length() / 1000;
 
-             std::cout << fmt::format(
-                 "info depth {} score cp {} nodes {} nps {} pv {} time {}\n",
-                 depth, score, total_nodes, nps, fmt::join(moves_str, " "), time
-             );
-         }
+            std::cout << fmt::format(
+                "info depth {} score cp {} nodes {} nps {} pv {} time {}\n\n",
+                depth, score, total_nodes, nps, fmt::join(moves_str, " "), time
+            );
+            std::cout.flush();
+        }
 
-         *bestMove = newPv[0];
-         *moveFound = true;
+        *bestMove = newPv[0];
+        *moveFound = true;
 
-         previousPv = std::move(newPv);
-         /*  this->display_cutoffs(depth);*/
+        previousPv = std::move(newPv);
+        /*  this->display_cutoffs(depth);*/
 
-         //std::cerr << "duration="<<t.get_length()<<"\n";
-         //display_timers();
-         //std::cerr << "total_nodes="<<m_total_nodes<<"\n";
-         //std::cerr << "total_quiescence_nodes="<<m_total_quiescence_nodes<<"\n";
-         //std::cerr << "\n-----------------\n\n";
-
-     }
+        //std::cerr << "duration="<<t.get_length()<<"\n";
+        //display_timers();
+        //std::cerr << "total_nodes="<<m_total_nodes<<"\n";
+        //std::cerr << "total_quiescence_nodes="<<m_total_quiescence_nodes<<"\n";
+        //std::cerr << "\n-----------------\n\n";
+    }
+    return false;
 }
 
 std::pair<bool,Move> find_best_move(Board& b)

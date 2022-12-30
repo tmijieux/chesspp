@@ -14,6 +14,7 @@ list(APPEND
 
 include("sdl2-config")
 include("sdl2_image-config")
+find_package(Boost REQUIRED COMPONENTS system)
 
 add_subdirectory(fmt EXCLUDE_FROM_ALL)
 add_subdirectory(src)

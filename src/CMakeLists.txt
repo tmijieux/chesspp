@@ -26,7 +26,11 @@ set(tistouchess_src
 
 #add_executable(chess WIN32 ${tistouchess_src})
 add_executable(tistouchess  ${tistouchess_src})
-target_link_libraries(tistouchess PRIVATE fmt::fmt-header-only)
+target_link_libraries(tistouchess
+  PRIVATE
+  fmt::fmt-header-only
+  Boost::system
+)
 
 if (NOT UCI_MODE)
   target_compile_options(tistouchess PRIVATE -DCHESS_ENABLE_SDL)

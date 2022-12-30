@@ -4,10 +4,13 @@
 
 #ifndef _WIN32
 #include <sys/time.h>
+
 #endif // #ifndef _WIN32
 
 #include <cstring>
 #include <iostream>
+
+
 #include "./types.hpp"
 
 
@@ -17,14 +20,14 @@
 #ifdef _WIN32
 
 
-// MSVC defines this in winsock2.h!?
-typedef struct timeval {
+//// MSVC defines this in winsock2.h!?
+typedef struct _timeval {
     long tv_sec;
     long tv_usec;
-} timeval;
+} my_timeval_t;
 
-int gettimeofday(struct timeval* tp, struct timezone* tzp);
-
+int gettimeofday(my_timeval_t* tp, struct timezone* tzp);
+//
 
 #endif
 
@@ -34,7 +37,7 @@ class Timer
 private:
     bool m_running;
     double m_length;
-    struct timeval m_last_start;
+    my_timeval_t m_last_start;
 public:
     Timer():
         m_running(false),
@@ -62,7 +65,7 @@ public:
     {
         if (!m_running)
             throw std::exception("timer is not running");
-        struct timeval tsp;
+        my_timeval_t tsp;
         gettimeofday(&tsp, NULL);
         m_length += TIMEVAL_DIFF(tsp, m_last_start);
         m_running = false;
@@ -71,7 +74,7 @@ public:
     double get_length()
     {
         if (m_running) {
-            struct timeval tsp;
+            my_timeval_t tsp;
             gettimeofday(&tsp, NULL);
             double length = m_length + TIMEVAL_DIFF(tsp, m_last_start);
             return length;

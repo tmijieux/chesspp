@@ -1,11 +1,12 @@
-#include "./timer.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #include <stdint.h> // portable: uint64_t   MSVC: __int64
 
-int gettimeofday(struct timeval* tp, struct timezone* tzp)
+#include "./timer.hpp"
+
+int gettimeofday(my_timeval_t* tp, struct timezone* tzp)
 {
     // Note: some broken versions only have 8 trailing zero's,
     // the correct epoch has 9 trailing zero's

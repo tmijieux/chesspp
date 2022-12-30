@@ -12,7 +12,7 @@
 #include "./move.hpp"
 #include "./engine.hpp"
 #include "./move_generation.hpp"
-
+#include "./uci.hpp"
 
 using StringList = std::vector<std::string>;
 
@@ -56,11 +56,6 @@ inline std::vector<std::string> splittrim(const std::string& s, const std::strin
     return res;
 }
 
-void send_command(std::string cmd)
-{
-
-}
-
 void send_id()
 {
     std::cout << "id name Tistou Chess 0.0.1 (c)\n";
@@ -85,9 +80,10 @@ void send_readyok()
 }
 
 
-void send_bestmove(const Move &m)
+void uci_send_bestmove(const Move &m)
 {
-    std::cout << "bestmove " << move_to_uci_string(m) << "\n";
+    std::cout << fmt::format("bestmove {}\n", move_to_uci_string(m));
+    std::cout.flush();
 }
 
 void send_nullmove()
@@ -95,37 +91,13 @@ void send_nullmove()
     std::cout << "bestmove 0000\n";
 }
 
-struct GoParams {
-    bool infinite;
-    bool ponder;
-    MoveList searchmoves;
-    uint64_t wtime;
-    uint64_t btime;
-    uint64_t wincrement;
-    uint64_t bincrement;
-    uint32_t movestogo;
-    uint32_t mate;
-    uint32_t depth;
 
-    GoParams() :
-        infinite{ false },
-        ponder{ false },
-        wtime{ 0 },
-        btime{ 0 },
-        wincrement{ 0 },
-        bincrement{ 0 },
-        movestogo{ 0 },
-        mate{ 0 },
-        depth{ 0 }
-    {
-    }
-};
 
-MoveList parse_moves(Board& b, const StringList& tokens, int begin, int end, bool apply_to_board)
+MoveList parse_moves(Board& b, const StringList& tokens, size_t begin, size_t end, bool apply_to_board)
 {
     MoveList collected_moves;
 
-    for (int j = begin; j < end; ++j)
+    for (auto j = begin; j < end; ++j)
     {
         const auto& move = tokens[j];
         if (move.size() != 4) {
@@ -208,6 +180,10 @@ GoParams parse_go_params(Board &b, StringList& tokens)
         {
             p.movestogo = read_integer<uint32_t>(tokens, i);
         }
+        else if (cmd == "movetime")
+        {
+            p.movetime = read_integer<uint64_t>(tokens, i);
+        }
         else if (cmd == "wtime")
         {
             p.wtime = read_integer<uint64_t>(tokens, i);
@@ -243,7 +219,7 @@ void handle_position_cmd(Board &b,const StringList &tokens)
     if (tokens.size() < 2) {
         throw std::exception("invalid position cmd ???");
     }
-    auto cmd = tokens[1];
+    const auto &cmd = tokens[1];
     int i = 2;
     if (cmd == "fen") {
         StringList fenpos_tokens;
@@ -280,7 +256,7 @@ void send_info_string(const std::string& info){
 
 int try_handle_one_command(
     StringList& tokens, bool& debug, bool &move_found,
-    Move &best_move, Board &b, NegamaxEngine &engine, std::thread &compute_thread)
+    Move &best_move, Board &b, NegamaxEngine &engine)
 {
     if (tokens.size() == 0) {
         return 0;
@@ -350,29 +326,19 @@ int try_handle_one_command(
     }
     else if (cmd == "go")
     {
-        GoParams params = parse_go_params(b, tokens);
-        if (compute_thread.joinable()) { compute_thread.detach(); }
+        if (engine.is_running()) {
+            // invalid go while already running
+            engine.stop();
+            return 0;
+        }
 
-        compute_thread = std::thread{ [&b, &engine, &best_move, &move_found, &compute_thread]() {
-            move_found = false;
-            engine.iterative_deepening(b, 6, &best_move, &move_found);
-            if (move_found) {
-                send_bestmove(best_move);
-                move_found = false;
-            }
-            else {
-                send_nullmove();
-            }
-            compute_thread.detach();
-            engine.m_required_stop = false;
-        } };
+        GoParams params = parse_go_params(b, tokens);
+        engine.set_uci_mode(true, params);
+        engine.start_uci_background(b);
     }
     else if (cmd == "stop")
     {
-        if (compute_thread.joinable()) {
-            engine.m_required_stop = true;
-            compute_thread.join();
-        }
+        engine.stop();
     }
     else if (cmd == "ponderhit")
     {
@@ -398,7 +364,6 @@ void uci_main_loop()
     NegamaxEngine engine;
 
     bool debug = false;
-    std::thread compute_thread;
     Move best_move;
     bool move_found = false;
 
@@ -412,7 +377,7 @@ void uci_main_loop()
         {
             int res = try_handle_one_command(
                 tokens, debug, move_found,
-                best_move, b, engine, compute_thread
+                best_move, b, engine
             );
             if (res == 0) {
                 cmd_handled = true;
