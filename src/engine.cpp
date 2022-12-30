@@ -386,13 +386,13 @@ void NegamaxEngine::iterative_deepening(
              return;
          }
 
-         std::cerr << "PV = ";
+         std::vector<std::string> moves_str;
+         moves_str.reserve(newPv.size());
          for (const auto& m : newPv) {
-             std::cerr << move_to_string(m) << " ";
+             moves_str.emplace_back(move_to_string(m));
          }
-         std::cerr << "\n\n";
-
-
+         std::cout << fmt::format("info string PV = {}\n",
+                                  fmt::join(moves_str, " "));
          *bestMove = newPv[0];
          *moveFound = true;
 

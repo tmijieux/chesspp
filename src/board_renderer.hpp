@@ -1,6 +1,7 @@
 #ifndef CHESS_BOARD_RENDERER_H
 #define CHESS_BOARD_RENDERER_H
 
+#ifdef CHESS_ENABLE_SDL
 #include "SDL.h"
 #include "./board.hpp"
 #include "./types.hpp"
@@ -40,5 +41,16 @@ public:
     void main_loop(Board &b);
 
 }; // class Board_Renderer
+
+
+#else // CHESS_ENABLE_SDL
+class Board;
+struct BoardRenderer {
+    void init() {}
+    void main_loop(Board&) {}
+};
+
+#endif // CHESS_ENABLE_SDL
+
 
 #endif // CHESS_BOARD_RENDERER_H

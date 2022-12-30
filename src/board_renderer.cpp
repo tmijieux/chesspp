@@ -1,3 +1,5 @@
+#ifdef CHESS_ENABLE_SDL
+
 #include <iostream>
 #include <filesystem>
 
@@ -361,3 +363,6 @@ void BoardRenderer::main_loop(Board &b)
         }
     }
 }
+
+
+#endif // CHESS_ENABLE_SDL

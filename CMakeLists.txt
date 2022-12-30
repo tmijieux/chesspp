@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(chesspp CXX)
 
+option(UCI_MODE "enable uci mode" ON)
+
 # find_package(Boost COMPONENTS program_options iostreams regex REQUIRED)
 list(APPEND
   CMAKE_MODULE_PATH
