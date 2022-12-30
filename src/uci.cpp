@@ -7,7 +7,6 @@
 #include <thread>
 #include <type_traits>
 
-#include <fmt/format.h>
 
 #include "./move.hpp"
 #include "./engine.hpp"
@@ -15,6 +14,7 @@
 #include "./uci.hpp"
 
 using StringList = std::vector<std::string>;
+
 
 inline std::string &ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int c) {
@@ -58,40 +58,36 @@ inline std::vector<std::string> splittrim(const std::string& s, const std::strin
 
 void send_id()
 {
-    std::cout << "id name Tistou Chess 0.0.1 (c)\n";
-    std::cout << "id author Thomas Mijieux\n";
+    uci_send("id name Tistou Chess 0.0.1 (c)\n");
+    uci_send("id author Thomas Mijieux\n");
 }
 
 void send_options()
 {
-    std::cout << "option name UCI_Opponent type string\n";
-    std::cout << "option name UCI_EngineAbout type string default Tistou Chess by Thomas Mijieux. see https://github.com/tmijieux/chesspp\n";
-    std::cout << "option name UCI_AnalyseMode type check default false\n";
+    uci_send("option name UCI_Opponent type string\n");
+    uci_send("option name UCI_EngineAbout type string default Tistou Chess by Thomas Mijieux. see https://github.com/tmijieux/chesspp\n");
+    uci_send("option name UCI_AnalyseMode type check default false\n");
 }
 
 void send_uciok()
 {
-    std::cout << "uciok\n";
+    uci_send("uciok\n");
 }
 
 void send_readyok()
 {
-    std::cout << "readyok\n";
+    uci_send("readyok\n");
 }
-
 
 void uci_send_bestmove(const Move &m)
 {
-    std::cout << fmt::format("bestmove {}\n", move_to_uci_string(m));
-    std::cout.flush();
+    uci_send("bestmove {}\n", move_to_uci_string(m));
 }
 
 void send_nullmove()
 {
-    std::cout << "bestmove 0000\n";
+    uci_send("bestmove 0000\n");
 }
-
-
 
 MoveList parse_moves(Board& b, const StringList& tokens, size_t begin, size_t end, bool apply_to_board)
 {
@@ -220,12 +216,12 @@ void handle_position_cmd(Board &b,const StringList &tokens)
         throw std::exception("invalid position cmd ???");
     }
     const auto &cmd = tokens[1];
-    int i = 2;
+    size_t i = 2;
     if (cmd == "fen") {
         StringList fenpos_tokens;
         while (true)
         {
-            if (i >= tokens.size() || tokens[i] == "moves"){
+            if (i >= tokens.size() || tokens[i] == "moves") {
                 break;
             }
             fenpos_tokens.push_back(tokens[i]);
@@ -235,8 +231,7 @@ void handle_position_cmd(Board &b,const StringList &tokens)
         b.load_position(fenpos);
     } else if (cmd == "startpos") {
         b.load_initial_position();
-    }
-    else {
+    } else {
         std::string msg = "invalid subcmd for position '" + cmd + "'\n";
         throw std::exception(msg.c_str());
     }
@@ -247,12 +242,7 @@ void handle_position_cmd(Board &b,const StringList &tokens)
     parse_moves(b, tokens, i + 1, tokens.size(), true);
 }
 
-void send_info_string(const std::string& info){
-    auto lines = splittrim(info, "\n");
-    for (const auto &line : lines) {
-        std::cout << fmt::format("info string {}\n", line);
-    }
-}
+
 
 int try_handle_one_command(
     StringList& tokens, bool& debug, bool &move_found,
@@ -261,7 +251,7 @@ int try_handle_one_command(
     if (tokens.size() == 0) {
         return 0;
     }
-    auto cmd = tokens[0];
+    const auto &cmd = tokens[0];
 
     if (cmd == "uci")
     {
@@ -272,11 +262,11 @@ int try_handle_one_command(
     else if (cmd == "debug")
     {
         if (!debug && tokens.size() >= 2 && tokens[1] == "on") {
-            send_info_string("debug mode ON!");
+            uci_send_info_string("debug mode ON!");
             debug = true;
         }
         else if (debug && tokens.size() >= 2 && tokens[1] == "off") {
-            send_info_string("debug mode OFF!");
+            uci_send_info_string("debug mode OFF!");
             debug = false;
         }
         // set debug mode
@@ -310,7 +300,7 @@ int try_handle_one_command(
         }
         std::string varname = fmt::format("{}",fmt::join(var_name_tokens, " "));
         std::string val = fmt::format("{}",fmt::join(var_value_tokens, " "));
-        send_info_string(fmt::format("option '{}' set to '{}'", varname, val));
+        uci_send_info_string(fmt::format("option '{}' set to '{}'", varname, val));
     }
     else if (cmd == "register")
     {
@@ -351,7 +341,7 @@ int try_handle_one_command(
     else
     {
         if (debug) {
-            send_info_string(fmt::format("unrecognized command `{}`", cmd));
+            uci_send_info_string(fmt::format("unrecognized command `{}`", cmd));
         }
         return 1;
     }

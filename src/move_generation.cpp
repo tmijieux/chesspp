@@ -457,21 +457,21 @@ Pos square_name_to_pos(const std::string& s) {
         s[0] - 'a'
     };
 }
-char get_char_by_piece_pgn(Piece p)
+std::string get_char_by_piece_pgn(Piece p)
 {
     switch (p) {
-        case P_PAWN: return 'p';
-        case P_ROOK: return 'r';
-        case P_BISHOP: return 'b';
-        case P_KNIGHT: return 'n';
-        case P_QUEEN: return 'q';
-        case P_KING: return 'k';
-        case P_EMPTY: return ' ';
-        default: return 'X';
+        case P_PAWN: return "p";
+        case P_ROOK: return "r";
+        case P_BISHOP: return "b";
+        case P_KNIGHT: return "n";
+        case P_QUEEN: return "q";
+        case P_KING: return "k";
+        case P_EMPTY: return " ";
+        default: return "X";
     }
 }
 
-std::string move_to_string(const Move& m) 
+std::string move_to_string(const Move& m)
 {
     std::string res = "";
 
@@ -481,9 +481,8 @@ std::string move_to_string(const Move& m)
     }
     res += pos_to_square_name(m.dst);
     if (m.takes) {
-        char q[2] = { 0 };
-        q[0] = get_char_by_piece_pgn(m.taken_piece);
-        res += " ( takes " +std::string(q) + ")";
+        auto p = get_char_by_piece_pgn(m.taken_piece);
+        res += fmt::format(" (takes {})", p);
     }
     if (m.takes && m.piece == P_PAWN) {
         res = pos_to_square_name(m.src)[0] + res;
@@ -493,6 +492,11 @@ std::string move_to_string(const Move& m)
 
 std::string move_to_uci_string(const Move& m)
 {
-    return pos_to_square_name(m.src) + pos_to_square_name(m.dst);
+    return fmt::format(
+        "{}{}{}",
+        pos_to_square_name(m.src),
+        pos_to_square_name(m.dst) ,
+        m.promote ? get_char_by_piece_pgn(m.promote_piece) : ""
+    );
 }
 

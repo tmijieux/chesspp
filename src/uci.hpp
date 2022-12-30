@@ -1,6 +1,7 @@
 #ifndef CHESS_UCI_H
 #define CHESS_UCI_H
 
+#include <fmt/format.h>
 
 struct GoParams {
     bool infinite;
@@ -30,8 +31,21 @@ struct GoParams {
     }
 };
 
+template<typename T, typename ...K>
+inline void uci_send(T&& t, K&&... k)
+{
+    std::cout << fmt::format(std::forward<T>(t), std::forward<K>(k)...) << std::flush;
+}
+
 void uci_main_loop();
 struct Move;
 void uci_send_bestmove(const Move&);
+
+template<typename T, typename ...K>
+inline void uci_send_info_string(T&& info, K&&... k)
+{
+    uci_send("info string {}\n", fmt::format(std::forward<T>(info), std::forward<K>(k)...));
+}
+
 
 #endif // CHESS_UCI_H

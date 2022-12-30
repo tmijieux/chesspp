@@ -71,6 +71,17 @@ private:
 
     uint64_t m_total_nodes;
     uint64_t m_total_quiescence_nodes;
+
+    uint64_t m_run_id;
+    bool m_uci_mode;
+    GoParams m_uci_go_params;
+    std::thread m_thread;
+    bool m_stop_required;
+    bool m_stop_required_by_timeout;
+    bool m_running;
+
+    void _start_uci_background(Board& b);
+
     void reset_timers()
     {
         m_evaluation_timer.reset();
@@ -86,18 +97,12 @@ private:
         m_unmake_move2_timer.reset();
     }
 
-    bool m_uci_mode;
-    GoParams m_uci_go_params;
-    std::thread m_thread;
-    bool m_stop_required;
-    bool m_running;
-
-    void _start_uci_background(Board& b);
 public:
 
     void stop();
     bool is_running() const { return m_running; }
     void start_uci_background(Board& b);
+
     void set_uci_mode(bool uci_mode, GoParams& params)
     {
         m_uci_mode = uci_mode;
@@ -127,8 +132,10 @@ public:
         m_current_max_depth{ 0 },
         m_total_nodes{ 0 },
         m_total_quiescence_nodes{ 0 },
+        m_run_id{ 0 },
         m_uci_mode{false},
         m_stop_required{false},
+        m_stop_required_by_timeout{ false },
         m_running{false}
     {
     }
@@ -147,7 +154,8 @@ public:
     );
 
     bool iterative_deepening(
-        Board& b, int max_depth, Move* bestMove, bool* moveFound );
+        Board& b, int max_depth, Move* bestMove, bool* moveFound,
+        uint64_t max_time);
 
     void set_max_depth(int maxdepth)
     {

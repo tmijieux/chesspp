@@ -269,24 +269,24 @@ void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
     }
     m_candidates_moves.clear();
 
-    if (player_move_done) {
-        draw(b);
+    //if (player_move_done) {
+    //    draw(b);
 
-        auto [found, move] = find_best_move(b);
-        if (!found) {
-            std::cout << "no move was found\n";
-            if (b.is_king_checked(b.get_next_move())) {
-                std::cout << "because is checkmated\n";
-            }
-            else {
-                std::cout << "pat!\n";
-            }
-        }
-        else {
-            b.make_move(move);
-            m_history.push_back(b);
-        }
-    }
+    //    auto [found, move] = find_best_move(b);
+    //    if (!found) {
+    //        std::cout << "no move was found\n";
+    //        if (b.is_king_checked(b.get_next_move())) {
+    //            std::cout << "because is checkmated\n";
+    //        }
+    //        else {
+    //            std::cout << "pat!\n";
+    //        }
+    //    }
+    //    else {
+    //        b.make_move(move);
+    //        m_history.push_back(b);
+    //    }
+    //}
     m_need_redraw = true;
 }
 

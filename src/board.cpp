@@ -15,7 +15,6 @@ void Board::load_position(const std::string& fen_position)
 void Board::load_initial_position()
 {
     load_position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    //load_position("rnbqkbnr/p4ppp/4p3/1pp5/P1pP4/4PN2/1P3PPP/RNBQKB1R w KQkq - 0 1");
 }
 
 Piece Board::get_piece_at(const Pos& pos) const {
@@ -110,6 +109,14 @@ void Board::make_move(const Move& move)
         set_castle_rights(isWhite ? CR_QUEEN_WHITE : CR_QUEEN_BLACK, false);
     }
 
+    if (move.takes && move.taken_piece == P_ROOK) {
+        if (move.dst.column == 7) {
+            set_castle_rights(isWhite ? CR_KING_BLACK : CR_KING_WHITE, false);
+        } else if (move.dst.column == 0) {
+            set_castle_rights(isWhite ? CR_QUEEN_BLACK : CR_QUEEN_WHITE, false);
+        }
+    }
+
     if (move.takes || move.piece == P_PAWN) {
         m_half_move_counter = 0;
     }
@@ -177,5 +184,4 @@ void Board::unmake_move(const Move& move)
     }
     m_next_to_move = move.color;
     //m_position = move.position_before;
-
 }

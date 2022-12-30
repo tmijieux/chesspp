@@ -332,12 +332,6 @@ int32_t NegamaxEngine::negamax(
             return a.evaluation > b.evaluation;
         });
         *topLevelOrdering = moveList;
-        //for (auto &m : moveList) {
-        //    if (!m.legal) {
-        //        continue;
-        //    }
-        //    std::cerr << move_to_string(m) << " "<<m.evaluation<<"\n";
-        //}
     }
     return alpha;
 }
@@ -346,21 +340,57 @@ void NegamaxEngine::_start_uci_background(Board &b)
 {
     bool move_found = false;
     Move best_move;
+    GoParams p = m_uci_go_params;
+    if (p.depth == 0) {
+        p.depth = 7;
+    }
+    uint64_t time = 0;
+    if (p.movetime > 0) {
+        time = p.movetime;
+    }
+    else if (p.wtime > 0 || p.btime > 0) {
+        uint64_t basetime = b.get_next_move() == C_WHITE ? p.wtime : p.btime;
+        if (p.movestogo > 0) {
+            time = basetime / p.movestogo;
+        }
+        else {
+            int move_count_wanted = std::max(60u - b.get_full_move(), 10u);
+            time = basetime / move_count_wanted;
+        }
+        // remove 200ms to have time finishing and returning move
+        time = std::min(time, std::max(15ull, basetime - 200ull));
+    }
+    auto id = ++m_run_id;
+
+    if (time > 0) {
+         // schedule thread to interrupt
+        std::thread([this,time, id]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(time));
+            if (this->is_running() && this->m_run_id == id)
+            {
+                this->m_stop_required_by_timeout = true;
+                this->m_stop_required = true;
+            }
+        })
+            .detach();
+    }
 
     m_running = true;
     bool interrupted = iterative_deepening(
-        b, 7, &best_move, &move_found
+        b, p.depth, &best_move, &move_found, time
     );
     m_running = false;
+    bool is_timeout = false;
 
     if (move_found) {
         uci_send_bestmove(best_move);
         move_found = false;
     }
-    if (!interrupted) {
+    if (!interrupted || m_stop_required_by_timeout) {
         m_thread.detach();
     }
     m_stop_required = false;
+    m_stop_required_by_timeout = false;
 }
 
 void NegamaxEngine::start_uci_background(Board &b)
@@ -385,7 +415,9 @@ void NegamaxEngine::stop()
 }
 
 bool NegamaxEngine::iterative_deepening(
-    Board& b, int max_depth, Move *bestMove, bool *moveFound)
+    Board& b, int max_depth,
+    Move *bestMove, bool *moveFound,
+    uint64_t max_time_ms)
 {
     *moveFound = false;
 
@@ -394,6 +426,8 @@ bool NegamaxEngine::iterative_deepening(
     MoveList topLevelOrdering;
 
     this->set_max_depth(max_depth);
+    Timer total_timer;
+    total_timer.start();
 
     for (int depth = 1; depth <= max_depth; ++depth) {
         MoveList newPv;
@@ -413,6 +447,16 @@ bool NegamaxEngine::iterative_deepening(
             newPv, previousPv, &topLevelOrdering
         );
         //std::cerr << "\n\n-----------------\n";
+        if (m_stop_required_by_timeout || max_time_ms > 0) {
+            uint64_t total_duration = total_timer.get_micro_length() / 1000;
+            if (total_duration > max_time_ms) {
+                uci_send_info_string(
+                    "EXIT ON TIME total_duration={} max_time_ms={} move_found={}",
+                    total_duration, max_time_ms, *moveFound
+                );
+                return false;
+            }
+        }
         if (m_stop_required) {
             return true;
         }
@@ -433,7 +477,7 @@ bool NegamaxEngine::iterative_deepening(
         // for (const auto& m : newPv) {
         //     moves_str.emplace_back(move_to_string(m));
         // }
-        // std::cout << fmt::format("info string PV = {}\n", fmt::join(moves_str, " "));
+        // uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
 
 
         if (depth >= 4) {
@@ -448,11 +492,10 @@ bool NegamaxEngine::iterative_deepening(
             uint64_t nps = (uint64_t)(total_nodes / duration);
             uint64_t time = t.get_micro_length() / 1000;
 
-            std::cout << fmt::format(
-                "info depth {} score cp {} nodes {} nps {} pv {} time {}\n\n",
+            uci_send(
+                "info depth {} score cp {} nodes {} nps {} pv {} time {}\n",
                 depth, score, total_nodes, nps, fmt::join(moves_str, " "), time
             );
-            std::cout.flush();
         }
 
         *bestMove = newPv[0];
@@ -476,7 +519,7 @@ std::pair<bool,Move> find_best_move(Board& b)
     bool found;
     NegamaxEngine engine;
 
-    engine.iterative_deepening(b, 7, &move, &found);
+    engine.iterative_deepening(b, 7, &move, &found, 0);
     if (!found) {
         std::cerr << "WARNING no move found !!" << std::endl;
     }
