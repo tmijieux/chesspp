@@ -290,7 +290,6 @@ int32_t NegamaxEngine::negamax(
     stats.num_move_skipped += moveList.size() - num_move_visited;
     stats.num_move_generated += moveList.size();
     stats.num_nodes += 1;
-    
 
     if (cutoff) {
         stats.num_cutoffs += 1;
@@ -345,7 +344,6 @@ void NegamaxEngine::iterative_deepening(
     Board& b, int max_depth, Move *bestMove, bool *moveFound)
 {
     m_running = true;
-
     *moveFound = false;
 
     int color = b.get_next_move() == C_WHITE ? +1 : -1;
@@ -358,6 +356,7 @@ void NegamaxEngine::iterative_deepening(
          MoveList newPv;
          newPv.reserve(depth);
          Timer t;
+         t.reset();
          t.start();
 
          reset_timers();
@@ -389,25 +388,31 @@ void NegamaxEngine::iterative_deepening(
          t.stop();
 
          std::vector<std::string> moves_str;
-         moves_str.reserve(newPv.size());
-         for (const auto& m : newPv) {
-             moves_str.emplace_back(move_to_string(m));
-         }
-         std::cout << fmt::format("info string PV = {}\n",
-             fmt::join(moves_str, " "));
+         // moves_str.reserve(newPv.size());
+         // for (const auto& m : newPv) {
+         //     moves_str.emplace_back(move_to_string(m));
+         // }
+         // std::cout << fmt::format("info string PV = {}\n", fmt::join(moves_str, " "));
 
-         moves_str.clear();
-         moves_str.reserve(newPv.size());
-         for (const auto& m : newPv) {
-             moves_str.emplace_back(move_to_uci_string(m));
+
+         if (depth >= 4) {
+
+             moves_str.clear();
+             moves_str.reserve(newPv.size());
+             for (const auto& m : newPv) {
+                 moves_str.emplace_back(move_to_uci_string(m));
+             }
+             uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
+             double duration = std::max(t.get_length(), 0.001); // cap at 1ms
+             uint64_t nps = (uint64_t)(total_nodes / duration);
+             uint64_t time = t.get_micro_length() / 1000;
+
+             std::cout << fmt::format(
+                 "info depth {} score cp {} nodes {} nps {} pv {} time {}\n",
+                 depth, score, total_nodes, nps, fmt::join(moves_str, " "), time
+             );
          }
-         uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
-         uint64_t nps = (uint64_t)(total_nodes / std::max(t.get_length(),0.000001));
-         uint64_t time = t.get_micro_length() / 1000;
-         std::cout << fmt::format(
-             "info depth {} score cp {} nodes {} nps {} pv {} time {}\r\n",
-             depth, score, total_nodes, nps, fmt::join(moves_str, " "), time
-         );
+
          *bestMove = newPv[0];
          *moveFound = true;
 
