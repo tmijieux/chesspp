@@ -22,17 +22,13 @@ void UI_mode()
 
 int main(int argc, char *argv[])
 {
-    //try {
-#ifdef CHESS_ENABLE_SDL
-        UI_mode();
-#else
+    try {
         uci_main_loop();
-#endif
-    //}
-    //catch (std::exception& e) {
-    //    std::cerr << "Exception=" << e.what() << "\n";
-    //    return 1;
-    //}
+    }
+    catch (std::exception& e) {
+        std::cerr << "Exception=" << e.what() << "\n";
+        return 1;
+    }
     return 0;
 }
 

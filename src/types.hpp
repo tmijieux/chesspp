@@ -26,10 +26,10 @@ enum Color : uint8_t {
 };
 inline Color other_color(Color c) { return (Color)(0x18 - (uint8_t)c); }
 
-enum CasleRightIndex: int8_t {
-    CR_KING_WHITE = 0,
+enum CasleRightIndex: uint8_t {
+    CR_KING_WHITE  = 0,
     CR_QUEEN_WHITE = 1,
-    CR_KING_BLACK = 2,
+    CR_KING_BLACK  = 2,
     CR_QUEEN_BLACK = 3,
 };
 

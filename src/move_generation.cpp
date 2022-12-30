@@ -50,10 +50,16 @@ void generate_pawn_move(
         m.takes = false;
         m.piece = b.get_piece_at(pos);
         m.color = clr;
-
         m.promote = can_promote;
-        m.promote_piece = can_promote ? P_QUEEN : P_EMPTY;
-        moveList.emplace_back(m);
+        if (can_promote) {
+            for (int p = P_BISHOP; p <= P_QUEEN; ++p) {
+                m.promote_piece = (Piece)p;
+                moveList.emplace_back(m);
+            }
+        } else {
+            m.promote_piece = P_EMPTY;
+            moveList.emplace_back(m);
+        }
 
         // initial pawn 2 square move
         Pos dst2{ nextRow+offset, pos.column };
@@ -97,8 +103,16 @@ void generate_pawn_move(
             m.color = clr;
             m.en_passant = en_passant;
             m.promote = can_promote;
-            m.promote_piece = can_promote ? P_QUEEN : P_EMPTY;
-            moveList.emplace_back(m);
+            if (can_promote) {
+                for (int p = P_BISHOP; p <= P_QUEEN; ++p) {
+                    m.promote_piece = (Piece)p;
+                    moveList.emplace_back(m);
+                }
+            }
+            else {
+                m.promote_piece = P_EMPTY;
+                moveList.emplace_back(m);
+            }
         }
     }
 }
@@ -329,7 +343,12 @@ void find_move_to_position(
         generate_knight_move(b, pos, enemy_clr, tmpList, only_takes);
         for (const auto& m : tmpList) {
             if (m.taken_piece == P_KNIGHT)
+            {
                 moveList.emplace_back(m.reverse());
+                if (max_move > 0 && moveList.size() >= max_move) {
+                    return;
+                }
+            }
         }
     }
 
@@ -495,7 +514,7 @@ std::string move_to_uci_string(const Move& m)
     return fmt::format(
         "{}{}{}",
         pos_to_square_name(m.src),
-        pos_to_square_name(m.dst) ,
+        pos_to_square_name(m.dst),
         m.promote ? get_char_by_piece_pgn(m.promote_piece) : ""
     );
 }

@@ -53,7 +53,13 @@ public:
     Pos get_en_passant_pos() const  { return m_en_passant_pos; }
     uint8_t get_half_move() const { return m_half_move_counter ; }
     uint32_t get_full_move() const { return m_full_move_counter ; }
-    bool is_king_checked(Color clr) const { return m_king_checked[clr >> 4]; }
+    bool is_king_checked(Color clr) const {
+        auto idx = clr >> 4;
+        if (idx < 0 || idx >= 2) {
+            std::abort();
+        }
+        return m_king_checked[idx];
+    }
     const Pos& get_king_pos(Color clr) const { return m_king_pos[clr >> 4]; }
     const std::string& get_pos_string() const { return m_position; }
     bool is_square_attacked(const Pos& pos, Color clr) const;
@@ -62,7 +68,12 @@ public:
     /* update board state */
     void set_piece_at(const Pos&pos, Piece piece, Color color);
     void set_next_move(Color color) { m_next_to_move = color; }
-    void set_castle_rights(CasleRightIndex idx, bool right) { m_castle_rights[(uint8_t)idx] = right; }
+    void set_castle_rights(CasleRightIndex idx, bool right) {
+        if (idx < 0 || idx >= 4) {
+            std::abort();
+        }
+        m_castle_rights[(uint8_t)idx] = right;
+    }
     void set_en_passant_pos(const Pos &pos) { m_en_passant_pos = pos; }
     void set_half_move(uint8_t counter) { m_half_move_counter = counter; }
     void set_full_move(uint8_t counter) { m_full_move_counter = counter; }

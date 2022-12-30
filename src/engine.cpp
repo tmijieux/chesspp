@@ -525,3 +525,52 @@ std::pair<bool,Move> find_best_move(Board& b)
     }
     return std::make_pair(found,move);
 }
+
+uint64_t NegamaxEngine::perft(
+    Board &b,
+    int max_depth, int remaining_depth,
+    std::vector<uint64_t>& res)
+{
+    if (remaining_depth == 0) {
+        return 1;
+    }
+
+    MoveList ml = enumerate_moves(b);
+    Color clr = b.get_next_move();
+
+    int32_t total = 0;
+    int num_legal_move = 0;
+    for (auto& move : ml) {
+        b.make_move(move);
+        if (b.is_king_checked(clr)) {
+            b.unmake_move(move);
+            continue;
+        }
+        ++num_legal_move;
+        int32_t val = perft(b, max_depth, remaining_depth-1, res);
+
+        total += val;
+        b.unmake_move(move);
+        if (max_depth == remaining_depth) {
+            std::cout << move_to_uci_string(move) <<": "<<val<< " "<<move_to_string(move) << "\n";
+        }
+    }
+    res[max_depth-remaining_depth] += num_legal_move;
+    return total;
+}
+
+void NegamaxEngine::do_perft(Board &b, int depth)
+{
+    std::vector<uint64_t> res;
+    res.resize(depth);
+    std::fill(res.begin(), res.end(), 0);
+
+    perft(b, depth, depth, res);
+
+    for (int i = 0; i < depth; ++i) {
+        uci_send_info_string(
+            "num_move for depth {} = {}",
+            i, res[i]
+        );
+    }
+}

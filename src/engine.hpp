@@ -172,6 +172,9 @@ public:
         }
     }
 
+    uint64_t perft(Board &b, int max_depth, int remaining_depth, std::vector<uint64_t> &res);
+    void do_perft(Board &b, int depth);
+
     void set_current_maxdepth(int maxdepth)
     {
         m_current_max_depth = maxdepth;
@@ -211,7 +214,6 @@ public:
 
         }
     }
-
 };
 
 

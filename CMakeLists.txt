@@ -2,9 +2,8 @@ cmake_minimum_required(VERSION 3.10)
 
 project(chesspp CXX)
 
-option(UCI_MODE "enable uci mode" ON)
+option(WITH_SDL "enable sdl ui" OFF)
 
-# find_package(Boost COMPONENTS program_options iostreams regex REQUIRED)
 list(APPEND
   CMAKE_MODULE_PATH
   "${PROJECT_SOURCE_DIR}/cmake/"
@@ -14,7 +13,6 @@ list(APPEND
 
 include("sdl2-config")
 include("sdl2_image-config")
-find_package(Boost REQUIRED COMPONENTS system)
 
 add_subdirectory(fmt EXCLUDE_FROM_ALL)
 add_subdirectory(src)

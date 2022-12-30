@@ -49,20 +49,6 @@ void draw_circle(SDL_Renderer* renderer, int32_t centreX, int32_t centreY, int32
     }
 }
 
-char get_char_by_piece(Piece p)
-{
-    switch (p) {
-        case P_PAWN: return 'p';
-        case P_ROOK: return 'r';
-        case P_BISHOP: return 'b';
-        case P_KNIGHT: return 'n';
-        case P_QUEEN: return 'q';
-        case P_KING: return 'k';
-        case P_EMPTY: return ' ';
-        default: return 'X';
-    }
-}
-
 //P_EMPTY = 0,
 //P_PAWN = 1,
 //P_BISHOP = 2,
@@ -89,26 +75,6 @@ const char* piece_path_white[P_NUM_PIECE] = {
     "chess-queen-white.png",
     "chess-king-white.png",
 };
-
-void BoardRenderer::console_draw(const Board &board) const
-{
-    for (int row = 7; row >= 0; --row)
-    {
-        for (int col = 0; col < 8; ++col)
-        {
-            Pos pos{ row, col };
-            Piece p = board.get_piece_at(pos);
-            Color clr = board.get_color_at(pos);
-
-            char c = get_char_by_piece(p);
-            if (clr == C_WHITE) {
-                c = c + ('A' - 'a');
-            }
-            std::cout << c << " ";
-        }
-        std::cout << "\n";
-    }
-}
 
 BoardRenderer::BoardRenderer() :
     m_window(nullptr),
@@ -176,7 +142,7 @@ void BoardRenderer::draw_pieces(const Board &b) const
     for (int i = 0; i < 64; ++i) {
         int col = i % 8;
         int row = i / 8;
-        
+
         Pos pos{ row, col };
         Piece p = b.get_piece_at(pos);
         Color clr = b.get_color_at(pos);
@@ -295,7 +261,7 @@ void BoardRenderer::main_loop(Board &b)
     bool quit = false;
     bool down = false;
     m_history.push_back(b);
-    
+
     while (!quit)
     {
         SDL_Event e;
@@ -330,6 +296,11 @@ void BoardRenderer::main_loop(Board &b)
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_e)
             {
                 std::cout << "current eval= " << evaluate_board(b) << "\n";
+            }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_p)
+            {
+                NegamaxEngine engine;
+                engine.do_perft(b, 4);
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_LEFT)
             {

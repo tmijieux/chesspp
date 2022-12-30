@@ -11,6 +11,8 @@
 #include "./move.hpp"
 #include "./engine.hpp"
 #include "./move_generation.hpp"
+#include "./board_renderer.hpp"
+
 #include "./uci.hpp"
 
 using StringList = std::vector<std::string>;
@@ -78,6 +80,45 @@ void send_readyok()
 {
     uci_send("readyok\n");
 }
+
+
+char get_char_by_piece(Piece p)
+{
+    switch (p) {
+    case P_PAWN: return 'p';
+    case P_ROOK: return 'r';
+    case P_BISHOP: return 'b';
+    case P_KNIGHT: return 'n';
+    case P_QUEEN: return 'q';
+    case P_KING: return 'k';
+    case P_EMPTY: return ' ';
+    default: return 'X';
+    }
+}
+
+void console_draw(const Board& board)
+{
+    std::cout << "\n\n";
+    for (int row = 7; row >= 0; --row)
+    {
+        for (int col = 0; col < 8; ++col)
+        {
+            Pos pos{ row, col };
+            Piece p = board.get_piece_at(pos);
+            Color clr = board.get_color_at(pos);
+
+            char c = get_char_by_piece(p);
+            if (clr == C_WHITE) {
+                c = c + ('A' - 'a');
+            }
+            std::cout << c << " ";
+        }
+        std::cout << "\n";
+    }
+
+    std::cout << "\nFen: " << board.get_pos_string() << "\n\n";
+}
+
 
 void uci_send_bestmove(const Move &m)
 {
@@ -337,6 +378,28 @@ int try_handle_one_command(
     else if (cmd == "quit")
     {
         exit(0);
+    }
+    else if (cmd == "d")
+    {
+        console_draw(b);
+    }
+    else if (cmd == "perft")
+    {
+        size_t i = 0;
+        int num = read_integer<uint32_t>(tokens, i);
+        if (num > 0) {
+            engine.do_perft(b, num);
+        }
+    }
+    else if (cmd == "ui")
+    {
+        BoardRenderer r;
+        r.init();
+        r.main_loop(b);
+    }
+    else if (cmd == "init")
+    {
+        b.load_initial_position();
     }
     else
     {

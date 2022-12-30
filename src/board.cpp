@@ -15,9 +15,13 @@ void Board::load_position(const std::string& fen_position)
 void Board::load_initial_position()
 {
     load_position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    //load_position("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
 }
 
 Piece Board::get_piece_at(const Pos& pos) const {
+    if (pos.column > 7 || pos.column < 0 || pos.row > 7 || pos.row < 0) {
+        std::abort();
+    }
     uint8_t piece = m_board[pos.column + pos.row * 8];
     piece = piece & P_PIECE_MASK;
     Piece p;
@@ -28,6 +32,10 @@ Piece Board::get_piece_at(const Pos& pos) const {
 }
 
 Color Board::get_color_at(const Pos& pos) const {
+
+    if (pos.column > 7 || pos.column < 0 || pos.row > 7 || pos.row < 0) {
+        std::abort();
+    }
     uint8_t color = m_board[pos.column + pos.row * 8];
     color = color & C_COLOR_MASK;
     Color c;
@@ -37,6 +45,10 @@ Color Board::get_color_at(const Pos& pos) const {
     return c;
 }
 void Board::set_piece_at(const Pos& pos, Piece p, Color c) {
+
+    if (pos.column > 7 || pos.column < 0 || pos.row > 7 || pos.row < 0) {
+        std::abort();
+    }
     uint8_t piece;
     uint8_t color;
     static_assert(sizeof(p) == sizeof(piece), "mismatched types size");
@@ -47,13 +59,20 @@ void Board::set_piece_at(const Pos& pos, Piece p, Color c) {
 
     m_board[pos.column + pos.row * 8] = piece | color;
     if (p == P_KING) {
-        m_king_pos[c >> 4] = pos;
+        auto idx = c >> 4;
+        if (idx < 0 || idx >= 2) {
+            std::abort();
+        }
+        m_king_pos[idx] = pos;
     }
 }
 
 bool Board::is_square_attacked(const Pos &p, Color attacked_by_clr) const
 {
     MoveList ml;
+    if (p.column == 3 && p.row == 6) {
+        std::cout << "here\n";
+    }
     find_move_to_position(*this, p, ml, attacked_by_clr, 1, false, true);
     return ml.size() == 1;
 }
@@ -61,7 +80,11 @@ bool Board::is_square_attacked(const Pos &p, Color attacked_by_clr) const
 bool Board::compute_king_checked(Color clr) const
 { // start from king position and do 'inversed-move' of all type of piece
   // to see if we land on a threatening piece
-    Pos p = m_king_pos[clr >> 4];
+    auto idx = clr >> 4;
+    if (idx < 0 || idx >= 2) {
+        std::abort();
+    }
+    Pos p = m_king_pos[idx];
     MoveList ml;
     find_move_to_position(*this, p, ml, other_color(clr), 1, true, false);
     return ml.size() == 1;

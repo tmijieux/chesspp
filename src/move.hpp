@@ -35,7 +35,7 @@ public:
 
     //bool legal;
     //bool legal_checked;
-    unsigned legal : 1;
+    bool legal;
     unsigned legal_checked : 1;
 
     unsigned promote : 1;

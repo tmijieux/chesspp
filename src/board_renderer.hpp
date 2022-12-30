@@ -27,7 +27,6 @@ private:
     void draw_pieces(const Board& b) const;
     void draw_candidates_moves() const;
 
-
     void prepare_player_move(Board& b, SDL_Event& e);
     void do_player_move(Board &b, SDL_Event&);
 
@@ -37,7 +36,6 @@ public:
     ~BoardRenderer();
     void draw(const Board& board) const;
 
-    void console_draw(const Board& board) const;
     void main_loop(Board &b);
 
 }; // class Board_Renderer
@@ -47,7 +45,9 @@ public:
 class Board;
 struct BoardRenderer {
     void init() {}
-    void main_loop(Board&) {}
+    void main_loop(Board&) {
+        std::cout << "SDL disabled\n";
+    }
 };
 
 #endif // CHESS_ENABLE_SDL
