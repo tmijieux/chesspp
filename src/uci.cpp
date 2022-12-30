@@ -19,7 +19,7 @@ inline std::string &ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int c) {
         return !std::isspace(c);
     }));
-   return s;
+    return s;
 }
 
 inline std::string &rtrim(std::string &s) {
@@ -35,7 +35,7 @@ inline std::string &trim(std::string &s) {
 
 
 void tokenize(const std::string  &str, const std::string &delim,
-            std::vector<std::string> &out)
+              std::vector<std::string> &out)
 {
     size_t start;
     size_t end = 0;
@@ -62,8 +62,8 @@ void send_command(std::string cmd)
 
 void send_id()
 {
-    std::cout << "id name chesspp 0.0.1 (c)\n";
-    std::cout << "id author Thomas Mijieux (c) \n";
+    std::cout << "id name Tistou Chess 0.0.1 (c)\n";
+    std::cout << "id author Thomas Mijieux\n";
 }
 
 void send_options()
@@ -74,7 +74,6 @@ void send_uciok()
 {
     std::cout << "uciok\n";
 }
-
 
 void send_readyok()
 {
@@ -127,7 +126,7 @@ void handle_position_cmd(Board &b,const StringList &tokens)
         const auto& move = tokens[j];
         if (move.size() != 4) {
             auto msg = "invalid move '" + move + "'";
-           throw std::exception(msg.c_str());
+            throw std::exception(msg.c_str());
         }
         std::string s_src = move.substr(0, 2);
         std::string s_dst = move.substr(2, 2);
@@ -203,19 +202,29 @@ void uci_main_loop()
         else if (cmd == "go")
         {
             move_found = false;
-            compute_thread = std::thread([&b, &engine, &best_move, &move_found]() {
+            if (compute_thread.joinable()) { compute_thread.detach(); }
+            compute_thread = std::thread{ [&b, &engine, &best_move, &move_found]() {
                 engine.iterative_deepening(b, 10, &best_move, &move_found);
-            });
+                if (move_found) {
+                    send_bestmove(best_move);
+                }
+                else {
+                    send_nullmove();
+                }
+
+            } };
         }
         else if (cmd == "stop")
         {
-            engine.m_required_stop = true;
-            compute_thread.join();
-            if (move_found) {
-                send_bestmove(best_move);
-            }
-            else {
-                send_nullmove();
+            if (compute_thread.joinable()) {
+                engine.m_required_stop = true;
+                compute_thread.join();
+                if (move_found) {
+                    send_bestmove(best_move);
+                }
+                else {
+                    send_nullmove();
+                }
             }
         }
         else if (cmd == "ponderhit")

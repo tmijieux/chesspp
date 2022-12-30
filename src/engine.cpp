@@ -364,7 +364,7 @@ void NegamaxEngine::iterative_deepening(
          m_total_nodes = 0;
          m_total_quiescence_nodes = 0;
 
-         this->negamax(
+         int32_t score = this->negamax(
              b, depth, depth, 0, color,
              -999999, // alpha
              +999999, // beta
@@ -386,20 +386,34 @@ void NegamaxEngine::iterative_deepening(
              return;
          }
 
+         t.stop();
+
          std::vector<std::string> moves_str;
          moves_str.reserve(newPv.size());
          for (const auto& m : newPv) {
              moves_str.emplace_back(move_to_string(m));
          }
          std::cout << fmt::format("info string PV = {}\n",
-                                  fmt::join(moves_str, " "));
+             fmt::join(moves_str, " "));
+
+         moves_str.clear();
+         moves_str.reserve(newPv.size());
+         for (const auto& m : newPv) {
+             moves_str.emplace_back(move_to_uci_string(m));
+         }
+         uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
+         uint64_t nps = (uint64_t)(total_nodes / std::max(t.get_length(),0.000001));
+         uint64_t time = t.get_micro_length() / 1000;
+         std::cout << fmt::format(
+             "info depth {} score cp {} nodes {} nps {} pv {} time {}\r\n",
+             depth, score, total_nodes, nps, fmt::join(moves_str, " "), time
+         );
          *bestMove = newPv[0];
          *moveFound = true;
 
          previousPv = std::move(newPv);
          /*  this->display_cutoffs(depth);*/
 
-         t.stop();
          //std::cerr << "duration="<<t.get_length()<<"\n";
          //display_timers();
          //std::cerr << "total_nodes="<<m_total_nodes<<"\n";
