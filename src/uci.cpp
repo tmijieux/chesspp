@@ -198,6 +198,7 @@ GoParams parse_go_params(Board &b, StringList& tokens)
         if (cmd == "infinite")
         {
             p.infinite = true;
+            p.depth = 1000;
             ++i;
         }
         else if (cmd == "ponder")
