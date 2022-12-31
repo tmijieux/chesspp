@@ -9,6 +9,7 @@ class Board;
 struct Move;
 
 #include "./types.hpp"
+#include "./transposition_table.hpp"
 
 std::string write_fen_position(const Board&);
 
@@ -30,6 +31,8 @@ private:
     uint8_t m_half_move_counter; // for 50 moves rule
 
     uint32_t m_flags;
+    uint64_t m_key;
+
     enum IDX {
         KING_POS_I = 0,
         //KING_POS_LENGTH = 12,
@@ -58,7 +61,8 @@ public:
     Board():
         m_half_move_counter{0},
         m_full_move_counter{1},
-        m_flags{ 0 }
+        m_flags{ 0 },
+        m_key{ 0 }
   /*      m_en_passant_file{ 0 },
         m_castle_rights{0},
         m_king_checked{ 0 },
@@ -71,10 +75,7 @@ public:
     Piece get_piece_at(const Pos& pos) const;
     Color get_color_at(const Pos& pos) const;
     Color get_next_move() const { return (Color)((m_flags >> NEXT_COLOR_I) & 1); }
-    bool get_castle_rights(CasleRightIndex idx) const {
-        auto val = (m_flags >> CASTLE_I) & (0x0F);
-        return (val & (1<<idx)) != 0;
-    }
+    uint8_t get_castle_rights() const { return (uint8_t)(m_flags >> CASTLE_I) & (0x0F); }
 
     Pos get_en_passant_pos() const {
         if (has_en_passant()) {
@@ -87,6 +88,9 @@ public:
     uint8_t get_half_move() const { return m_half_move_counter ; }
     uint16_t get_full_move() const { return m_full_move_counter ; }
     uint32_t get_flags() const { return m_flags;  }
+    std::string get_key_string() const { return Hash::to_string(get_key()); }
+    uint64_t get_key() const { return m_key; }
+
     bool is_king_checked(Color clr) const {
         auto val = (m_flags >> KING_CHECKED_I) & 0x3;
         return (val & (1<<clr)) != 0;
@@ -116,13 +120,11 @@ public:
         //            remove color               and   set it to new value
         m_flags = (m_flags & ~(1u << NEXT_COLOR_I)) | (color << NEXT_COLOR_I);
     }
-    void set_castle_rights(CasleRightIndex cri, bool right) {
-        if (cri < 0 || cri >= 4) {
-            std::abort();
-        }
-        int idx = CASTLE_I + cri;
-        m_flags = (m_flags & ~(1u << idx)) | (right << idx);
+    void set_castle_rights(uint32_t val) {
+        auto mask = ~(0x0Fu << CASTLE_I);
+        m_flags = (m_flags & mask) | (val << CASTLE_I);
     }
+
     void set_en_passant_pos(uint8_t val) {
         auto mask = ~(0x0Fu << EN_PASSANT_I);
         m_flags = (m_flags & mask) ^ (val << EN_PASSANT_I);

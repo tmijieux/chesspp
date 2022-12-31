@@ -13,19 +13,21 @@
 #include "./uci.hpp"
 
 struct Stats {
-    int32_t num_cutoffs;
-    int32_t num_cut_by_killer;
-    int32_t num_cut_by_best_pv;
-    int32_t num_leaf_nodes;
-
-    int32_t num_faillow_node;
-    int32_t num_pvnode;
-
-    int32_t num_nodes;
-
-    int32_t num_move_visited;//including illegal moves
-    int32_t num_move_skipped;
-    int32_t num_move_generated;
+    uint32_t num_cutoffs;
+    uint32_t num_cut_by_killer;
+    uint32_t num_cut_by_best_pv;
+    uint32_t num_leaf_nodes;
+    
+    uint32_t num_faillow_node;
+    uint32_t num_pvnode;
+    
+    uint32_t num_nodes;
+    
+    uint32_t num_move_visited;//including illegal moves
+    uint32_t num_move_skipped;
+    uint32_t num_move_generated;
+    uint32_t num_hash_hits;
+    uint32_t num_hash_conflicts;
 
 
 
@@ -40,7 +42,9 @@ struct Stats {
 
         num_move_visited{0},
         num_move_skipped{ 0 },
-        num_move_generated{ 0 }
+        num_move_generated{ 0 },
+        num_hash_hits{ 0 },
+        num_hash_conflicts{ 0 }
     {
     }
 };
@@ -53,6 +57,8 @@ private:
     KillerMoves m_killers;
     uint32_t m_max_depth;
     uint32_t m_current_max_depth; // iterative deepening;
+
+    Hash m_hash;
 
     //  current_max_depth, current_depth
     std::map<uint32_t, std::map<uint32_t, Stats>> m_stats;
@@ -98,6 +104,10 @@ private:
     }
 
 public:
+
+    void init_hash() { m_hash.init(1000); }
+    void clear_hash() { m_hash.clear(); init_hash(); }
+
 
     void stop();
     bool is_running() const { return m_running; }
@@ -180,37 +190,39 @@ public:
         m_current_max_depth = maxdepth;
     }
 
-    void display_cutoffs()
+    void display_stats()
     {
         for (auto& [maxdepth, stats_at_depth] : m_stats) {
-            display_cutoffs(maxdepth);
+            display_stats(maxdepth);
         }
     }
 
-    void display_cutoffs(int current_maxdepth)
+    void display_stats(int current_maxdepth)
     {
         std::cerr << "cutoffs for current_maxdepth=" << current_maxdepth << "\n";
         for (auto& [depth, stats] : m_stats[current_maxdepth]) {
 
-            double percent = (double)stats.num_move_visited / std::max(stats.num_move_generated,1);
-            double percent2 = (double)stats.num_cutoffs / std::max(stats.num_nodes,1);
+            double percent = (double)stats.num_move_visited / std::max(stats.num_move_generated,1u);
+            double percent2 = (double)stats.num_cutoffs / std::max(stats.num_nodes,1u);
 
             std::cerr << "d=" << depth
-                      << "\n   NODES total=" << stats.num_nodes
-                      << " leaf="<<stats.num_leaf_nodes
-                      << " cutoffs=" << stats.num_cutoffs
-                      << " (" << (int)(percent2 * 100.0) << "%) "
+                << "\n   NODES total=" << stats.num_nodes
+                << " leaf=" << stats.num_leaf_nodes
+                << " cutoffs=" << stats.num_cutoffs
+                << " (" << (int)(percent2 * 100.0) << "%) "
 
-                      << " pv=" << stats.num_pvnode
-                      << " faillow= " << stats.num_faillow_node
-                      << " cut_by_killer= " << stats.num_cut_by_killer
-                      << " cut_by_best_pv= " << stats.num_cut_by_best_pv
+                << " pv=" << stats.num_pvnode
+                << " faillow= " << stats.num_faillow_node
+                << " cut_by_killer= " << stats.num_cut_by_killer
+                << " cut_by_best_pv= " << stats.num_cut_by_best_pv
 
-                      << "\n   MOVES generated=" << stats.num_move_generated
-                      << " skipped=" << stats.num_move_skipped
-                      << " visited=" << stats.num_move_visited
-                      << " ("<< (int)(percent*100.0) <<"%) "
-                      << "\n\n";
+                << "\n   MOVES generated=" << stats.num_move_generated
+                << " skipped=" << stats.num_move_skipped
+                << " visited=" << stats.num_move_visited
+                << " (" << (int)(percent * 100.0) << "%) "
+                << "\n   HASH hits=" << stats.num_hash_hits
+                << " conflicts=" << stats.num_hash_conflicts
+                << "\n\n";
 
         }
     }

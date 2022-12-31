@@ -25,10 +25,10 @@ enum Color : uint8_t {
 inline constexpr Color other_color(Color c) { return (Color)(0x01 - (uint8_t)c); }
 
 enum CasleRightIndex: uint8_t {
-    CR_KING_WHITE  = 0,
-    CR_QUEEN_WHITE = 1,
-    CR_KING_BLACK  = 2,
-    CR_QUEEN_BLACK = 3,
+    CR_KING_WHITE  = 1<<0,
+    CR_QUEEN_WHITE = 1<<1,
+    CR_KING_BLACK  = 1<<2,
+    CR_QUEEN_BLACK = 1<<3,
 };
 
 
@@ -53,9 +53,10 @@ public:
 
     Pos() : Pos(-1,-1) {}
 
-    bool operator==(const Pos& o) {
+    bool operator==(const Pos& o) const {
         return row == o.row && column == o.column;
     }
+    const int8_t to_val() const { return row * 8 + column; }
 
     Pos& operator=(const Pos& o) {
         column = o.column;

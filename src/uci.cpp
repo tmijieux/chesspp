@@ -1,4 +1,3 @@
-
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -6,7 +5,6 @@
 #include <string>
 #include <thread>
 #include <type_traits>
-
 
 #include "./move.hpp"
 #include "./engine.hpp"
@@ -82,7 +80,7 @@ void send_readyok()
 }
 
 
-char get_char_by_piece(Piece p)
+inline constexpr char get_char_by_piece(Piece p)
 {
     switch (p) {
     case P_PAWN: return 'p';
@@ -116,7 +114,9 @@ void console_draw(const Board& board)
         std::cout << "\n";
     }
 
-    std::cout << "\nFen: " << board.get_pos_string() << "\n\n";
+    std::cout << "\nFen: " << board.get_pos_string() << "\n";
+    std::cout << "Key: " << board.get_key_string() << "\n\n";
+
 }
 
 void uci_send_bestmove(const Move &m)
@@ -288,8 +288,6 @@ void handle_position_cmd(Board &b,const StringList &tokens)
     parse_moves(b, tokens, i + 1, tokens.size(), true);
 }
 
-
-
 int try_handle_one_command(
     StringList& tokens, bool& debug, bool &move_found,
     Move &best_move, Board &b, NegamaxEngine &engine)
@@ -304,6 +302,8 @@ int try_handle_one_command(
         send_id();
         send_options();
         send_uciok();
+        engine.init_hash();
+
     }
     else if (cmd == "debug")
     {
@@ -336,7 +336,7 @@ int try_handle_one_command(
             var_name_tokens.push_back(tokens[i]);
             ++i;
         }
-        if (i >= tokens.size()){
+        if (i >= tokens.size()) {
             return 0;
         }
         ++i;
@@ -367,7 +367,6 @@ int try_handle_one_command(
             engine.stop();
             return 0;
         }
-
         GoParams params = parse_go_params(b, tokens);
         engine.set_uci_mode(true, params);
         engine.start_uci_background(b);
@@ -406,6 +405,10 @@ int try_handle_one_command(
     {
         b.load_initial_position();
     }
+    else if (cmd == "clearhash")
+    {
+        engine.clear_hash();
+    }
     else
     {
         if (debug) {
@@ -420,7 +423,7 @@ void uci_main_loop()
 {
     Board b;
     NegamaxEngine engine;
-    b.load_initial_position();
+    b.load_initial_position(); // not supposed to do this in uci but for now idontcare
 
     bool debug = false;
     Move best_move;
@@ -444,7 +447,6 @@ void uci_main_loop()
             else {
                 tokens.erase(tokens.begin());
             }
-
         }
     }
 }

@@ -10,7 +10,7 @@ void reorder_mvv_lva(const Board& b, MoveList& moveList);
 void reorder_moves(
     Board &b, MoveList &moveList ,
     int current_depth, int remaining_depth,
-    const MoveList &previousPv, KillerMoves &killers);
+    const MoveList &previousPv, KillerMoves &killers, const Move &hash_move, bool has_best_move);
 
 
 int32_t compute_see(Board &b, const Move &m);

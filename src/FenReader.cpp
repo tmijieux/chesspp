@@ -88,7 +88,7 @@ void fen_read_position(Board &b, std::istream& input)
 
         Piece p = get_piece_by_char(c);
         Color clr = get_color_by_char(c);
-   
+
         if (p != P_INVALID_PIECE)
         {
             b.set_piece_at(cur_pos, p, clr);
@@ -141,10 +141,7 @@ void fen_read_next_to_move(Board& b, std::istream& input)
 
 void fen_read_castle_rights(Board& b, std::istream& input)
 {
-    b.set_castle_rights(CR_KING_BLACK, false);
-    b.set_castle_rights(CR_QUEEN_BLACK, false);
-    b.set_castle_rights(CR_KING_WHITE, false);
-    b.set_castle_rights(CR_QUEEN_WHITE, false);
+    uint8_t castle_rights = 0x00;
 
     for (;;) {
         char c = input.get();
@@ -152,21 +149,22 @@ void fen_read_castle_rights(Board& b, std::istream& input)
             break;
         }
         else if (c == 'k') {
-            b.set_castle_rights(CR_KING_BLACK, true);
+            castle_rights |= CR_KING_BLACK;
         }
         else if (c == 'q') {
-            b.set_castle_rights(CR_QUEEN_BLACK, true);
+            castle_rights |= CR_QUEEN_BLACK;
         }
         else if (c == 'K') {
-            b.set_castle_rights(CR_KING_WHITE, true);
+            castle_rights |= CR_KING_WHITE;
         }
         else if (c == 'Q') {
-            b.set_castle_rights(CR_QUEEN_WHITE, true);
+            castle_rights |= CR_QUEEN_WHITE;
         }
         else {
             throw invalid_fen_string();
         }
     }
+    b.set_castle_rights(castle_rights);
     remove_whitespace(input);
 }
 
@@ -265,8 +263,9 @@ std::string write_fen_position(const Board& b)
 
     char castlingChars[4] = { 'K','Q','k','q' };
     bool hasCastling = false;
+    auto rights = b.get_castle_rights();
     for (int i = 0; i < 4; ++i) {
-        if (b.get_castle_rights((CasleRightIndex)i)) {
+        if (rights & (1<<i)) {
             buf[x++] = castlingChars[i];
             hasCastling = true;
         }

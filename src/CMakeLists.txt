@@ -22,6 +22,8 @@ set(tistouchess_src
   move_ordering.cpp
   uci.hpp
   uci.cpp
+  transposition_table.hpp
+  transposition_table.cpp
 )
 
 #add_executable(chess WIN32 ${tistouchess_src})

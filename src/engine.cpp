@@ -37,7 +37,6 @@ int32_t NegamaxEngine::quiesce(
     }
 
     m_total_quiescence_nodes += 1;
-
     if (standing_pat >= beta) {
         return beta;
     }
@@ -107,6 +106,9 @@ int32_t NegamaxEngine::quiesce(
             // deep trouble here (checkmate) , but the more moves to get there,
             // the less deep trouble because adversary could make a mistake ;)
             // (this is to select quickest forced mate)
+
+            // should we return beta for fail-hard here ?
+            // other wise aspiration windows may not work ???
             return -20000 + 5*current_depth;
         }
         else {
@@ -129,13 +131,83 @@ int32_t NegamaxEngine::negamax(
     if (m_stop_required) {
         return beta; // fail-high immediately
     }
+    auto& stats = m_stats[max_depth][current_depth];
 
+
+    Move bestMove;
+    Move hash_move;
+    bool has_hash_move = false;
     MoveList currentPv;
+    
     Color clr = b.get_next_move();
     currentPv.reserve(remaining_depth+1);
 
+    uint64_t mask = (1<<27) -1;
+    uint64_t bkey = b.get_key();
+    //uint32_t key = (uint32_t) (bkey & mask);
+    auto &hashentry = m_hash.get(bkey);
+    if (hashentry.key == bkey) {
+
+        hash_move = generate_move_for_squares(
+            b, hashentry.hashmove_src,
+            hashentry.hashmove_dst,
+            hashentry.promote_piece
+        );
+        has_hash_move = hash_move.src.row != -1;
+
+        if (hashentry.depth >= remaining_depth) {
+            //std::cout << "hash found"
+            //    << " hashentry.depth=" << hashentry.depth
+            //    << " remaining_depth=" << remaining_depth << "\n";
+            if (hashentry.exact_score) {
+                //std::cout << "hash hit!\n";
+                stats.num_hash_hits++;
+
+                // collect pv
+                if (parentPv.size() == 0) {
+                    parentPv.push_back(hash_move);
+                }
+                else {
+                    parentPv[0] = hash_move;
+                }
+                parentPv.resize(1);
+                parentPv.insert(parentPv.begin() + 1, currentPv.begin(), currentPv.end());
+
+                if (hashentry.score >= beta) {
+                    return beta;
+                }
+                else if (hashentry.score <= alpha) {
+                    return alpha;
+                }
+                else {
+                    return hashentry.score;
+                }
+            }
+            else if (hashentry.lower_bound) {
+                if (hashentry.score >= beta) {
+                    //std::cout << "hash hit!\n";
+                    stats.num_hash_hits++;
+
+                    return beta;
+                }
+                else if (hashentry.score >= alpha) {
+                    alpha = hashentry.score;
+                }
+            }
+            else if (hashentry.upper_bound) {
+                if (hashentry.score <= alpha) {
+                    stats.num_hash_hits++;
+
+                    //std::cout << "hash hit!\n";
+                    return alpha;
+                }
+            }
+        }
+    } else if (hashentry.key != 0 && hashentry.key != bkey) {
+        stats.num_hash_conflicts++;
+    }
+
     if (remaining_depth == 0) {
-        auto& stats = m_stats[max_depth][current_depth];
         stats.num_leaf_nodes += 1;
         SmartTime st{ m_quiescence_timer };
         int32_t val = quiesce(b, color, alpha, beta, current_depth);
@@ -153,7 +225,10 @@ int32_t NegamaxEngine::negamax(
         }
         {
             SmartTime st{ m_move_ordering_timer };
-            reorder_moves(b, moveList, current_depth, remaining_depth, previousPv, m_killers);
+            reorder_moves(b, moveList, current_depth,
+                remaining_depth, previousPv, m_killers,
+                hash_move, has_hash_move
+            );
         }
     }
     uint32_t num_legal_move = 0;
@@ -161,8 +236,8 @@ int32_t NegamaxEngine::negamax(
     bool cutoff = false;
     bool raise_alpha = false;
     int num_move_visited = 0;
-    auto& stats = m_stats[max_depth][current_depth];
     bool use_aspiration = false;
+    int32_t oldval = -999999;
 
     for (auto& move : moveList) {
         if (move.legal_checked && !move.legal) {
@@ -219,7 +294,6 @@ int32_t NegamaxEngine::negamax(
                     ++k;
                 }
             }
-
         }
         else {
             val = -negamax(
@@ -232,12 +306,16 @@ int32_t NegamaxEngine::negamax(
             SmartTime st{ m_unmake_move_timer };
             b.unmake_move(move);
         }
-        move.evaluation = val;
+        if (val > oldval) {
+            oldval = val;
+            bestMove = move;
+        }
         if (val >= beta) {
             alpha = beta; // cut node ! yay !
             if (m_stop_required) {
                 return beta;
             }
+            bestMove = move;
             cutoff = true;
             if (move.best_from_pv) {
                 stats.num_cut_by_best_pv += 1;
@@ -265,14 +343,14 @@ int32_t NegamaxEngine::negamax(
                         killers.erase(killers.begin());
                     }
                 }
-            } else {
-
             }
             // TODO: store refutation move in TT
             break;
         }
         if (val > alpha) {
             alpha = val; // pv node
+            bestMove = move;
+
             // collect PV :
             if (parentPv.size() == 0) {
                 parentPv.push_back(move);
@@ -293,26 +371,49 @@ int32_t NegamaxEngine::negamax(
     stats.num_move_generated += moveList.size();
     stats.num_nodes += 1;
 
-    if (cutoff) {
-        stats.num_cutoffs += 1;
+    bool replace = hashentry.key == 0 || remaining_depth > hashentry.depth;
+    if (replace) {
+        hashentry.score = alpha;
+        hashentry.depth = remaining_depth;
+        hashentry.key = bkey;
+        hashentry.hashmove_src = bestMove.src.to_val();
+        hashentry.hashmove_dst = bestMove.dst.to_val();
+        hashentry.promote_piece = bestMove.promote_piece;
+    }
 
+    if (cutoff) {
         // cut-node (fail-high)
         // "A fail-high indicates that the search found something that was "too good".
         // What this means is that the opponent has some way, already found by the search,
         // of avoiding this position, so you have to assume that they'll do this.
         // If they can avoid this position, there is no longer any need to search successors,
         // since this position won't happen."
+        stats.num_cutoffs += 1;
+        if (replace){
+            hashentry.exact_score = false;
+            hashentry.lower_bound = true;
+            hashentry.upper_bound = false;
+        }
     } else if (raise_alpha) {
-        stats.num_pvnode += 1;
-
         // pv-node (new best move)
+        stats.num_pvnode += 1;
+        if (replace){
+            hashentry.exact_score = true;
+            hashentry.lower_bound = false;
+            hashentry.upper_bound = false;
+        }
     } else {
-        stats.num_faillow_node += 1;
         // all-node (fail-low)
         // "A fail-low indicates that this position was not good enough for us.
         // We will not reach this position,
         // because we have some other means of reaching a position that is better.
         // We will not make the move that allowed the opponent to put us in this position."
+        stats.num_faillow_node += 1;
+        if (replace){
+            hashentry.exact_score = false;
+            hashentry.lower_bound = false;
+            hashentry.upper_bound = true;
+        }
     }
 
     if (num_legal_move == 0) {
@@ -332,6 +433,7 @@ int32_t NegamaxEngine::negamax(
             return a.evaluation > b.evaluation;
         });
         *topLevelOrdering = moveList;
+        // full sort for next level of iterative deepening
     }
     return alpha;
 }
@@ -473,14 +575,14 @@ bool NegamaxEngine::iterative_deepening(
         t.stop();
 
         std::vector<std::string> moves_str;
-        // moves_str.reserve(newPv.size());
-        // for (const auto& m : newPv) {
-        //     moves_str.emplace_back(move_to_string(m));
-        // }
-        // uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
+        moves_str.reserve(newPv.size());
+        for (const auto& m : newPv) {
+            moves_str.emplace_back(move_to_string(m));
+        }
+        uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
 
 
-        if (depth >= 4) {
+        if (depth >= 0) {
 
             moves_str.clear();
             moves_str.reserve(newPv.size());
@@ -502,13 +604,13 @@ bool NegamaxEngine::iterative_deepening(
         *moveFound = true;
 
         previousPv = std::move(newPv);
-        /*  this->display_cutoffs(depth);*/
+        this->display_stats(depth);
 
-        //std::cerr << "duration="<<t.get_length()<<"\n";
-        //display_timers();
-        //std::cerr << "total_nodes="<<m_total_nodes<<"\n";
-        //std::cerr << "total_quiescence_nodes="<<m_total_quiescence_nodes<<"\n";
-        //std::cerr << "\n-----------------\n\n";
+        std::cerr << "duration="<<t.get_length()<<"\n";
+        display_timers();
+        std::cerr << "total_nodes="<<m_total_nodes<<"\n";
+        std::cerr << "total_quiescence_nodes="<<m_total_quiescence_nodes<<"\n";
+        std::cerr << "\n-----------------\n\n";
     }
     return false;
 }

@@ -221,8 +221,9 @@ void generate_queen_move(const Board& b, const Pos& pos, Color clr, MoveList& mo
 void castle_king_side(
     const Board& b, const Pos& pos, Color clr, MoveList& moveList)
 {
+    auto rights = b.get_castle_rights();
     auto idxKing = clr == C_WHITE ? CR_KING_WHITE : CR_KING_BLACK;
-    if (!b.get_castle_rights(idxKing)) {
+    if ((rights & idxKing) == 0) {
         return;
     }
     for (int8_t i = 5; i <= 6; ++i) {
@@ -256,8 +257,9 @@ void castle_king_side(
 void castle_queen_side(
     const Board& b, const Pos& pos, Color clr, MoveList& moveList)
 {
+    auto rights = b.get_castle_rights();
     auto idxQueen = clr == C_WHITE ? CR_QUEEN_WHITE : CR_QUEEN_BLACK;
-    if (!b.get_castle_rights(idxQueen)) {
+    if ((rights & idxQueen) == 0) {
         return;
     }
     for (int8_t i = 3; i >= 1; --i) {
@@ -425,6 +427,21 @@ MoveList enumerate_moves(const Board& b, bool only_takes)
     }
     return moveList;
 }
+
+Move generate_move_for_squares(
+    const Board &b,  const Pos &src, const Pos &dst, Piece promote_piece)
+{
+    MoveList ml;
+    add_move_from_position(b, src, ml, false);
+    for (const auto& m : ml) {
+        if (m.dst == dst && m.promote_piece==promote_piece) {
+            return m;
+        }
+    }
+    return Move{};
+}
+
+
 
 MoveList enumerate_attacks(const Board& b, Color to_move)
 {

@@ -36,7 +36,9 @@ public:
     Piece promote_piece;
 
     // remember some of state of board before move
-    uint32_t m_flags_before;
+    uint32_t m_board_state_before;
+    uint64_t m_board_key_before;
+
     uint8_t half_move_before;
 
     Move():
@@ -53,7 +55,8 @@ public:
         half_move_before(0),
         promote(false),
         promote_piece(P_INVALID_PIECE),
-        m_flags_before{ 0 },
+        m_board_state_before{ 0 },
+        m_board_key_before{ 0 },
         legal{false},
         legal_checked{false}
     {
@@ -61,7 +64,8 @@ public:
 
     Move(const Board& b) : Move()
     {
-        m_flags_before = b.get_flags();
+        m_board_state_before = b.get_flags();
+        m_board_key_before = b.get_key();
         half_move_before = b.get_half_move();
     }
 
@@ -89,7 +93,8 @@ public:
         m.promote = promote;
         m.promote_piece = promote_piece;
 
-        m.m_flags_before = m_flags_before;
+        m.m_board_state_before = m_board_state_before;
+        m.m_board_key_before = m_board_key_before;
         m.half_move_before = half_move_before;
 
         m.legal = legal;

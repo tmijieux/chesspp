@@ -53,15 +53,27 @@ void reorder_moves(
     int current_depth,
     int remaining_depth,
     const MoveList& previousPv,
-    KillerMoves &killers)
+    KillerMoves &killers,
+    const Move &hash_move, bool has_hash_move)
 {
     bool has_best_move = false;
     size_t offset = 0;
-    if (current_depth < previousPv.size()) {
-        const Move& bestMove = previousPv[current_depth];
+    //if (current_depth < previousPv.size()) {
+    //    const Move& bestMove = previousPv[current_depth];
 
+    //    for (size_t i = offset+1; i < moveList.size(); ++i) {
+    //        if (moveList[i] == bestMove ) {
+    //            std::swap(moveList[offset], moveList[i]);
+    //            has_best_move = true;
+    //            moveList[offset].best_from_pv = true;
+    //            ++offset;
+    //            break;
+    //        }
+    //    }
+    //}
+    if (has_hash_move) {
         for (size_t i = offset+1; i < moveList.size(); ++i) {
-            if (moveList[i] == bestMove ) {
+            if (moveList[i] == hash_move ) {
                 std::swap(moveList[offset], moveList[i]);
                 has_best_move = true;
                 moveList[offset].best_from_pv = true;

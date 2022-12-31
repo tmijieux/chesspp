@@ -2,13 +2,15 @@
 #include <iostream>
 
 #include "./FenReader.hpp"
-#include "move_generation.hpp"
+#include "./move_generation.hpp"
 #include "./board.hpp"
+#include "./transposition_table.hpp"
 
 void Board::load_position(const std::string& fen_position)
 {
     FenReader r;
     r.load_position(*this, fen_position);
+    m_key = Hash::full_hash(*this);
 }
 
 void Board::load_initial_position()
@@ -83,9 +85,52 @@ bool Board::compute_king_checked(Color clr) const
 
 void Board::make_move(const Move& move)
 {
+    #ifdef DEBUG
     if (move.color != get_next_move()) {
         throw std::exception("invalid move for next_to_move state");
     }
+    #endif // DEBUG
+
+    // ----------------------------------------
+    // --- HANDLE REMOVING CASTLING RIGHTS ----
+    bool isWhite = move.color == C_WHITE;
+    const uint8_t old_castle_rights = get_castle_rights();
+    uint8_t new_castle_rights = old_castle_rights;
+
+    // by moving
+    if (move.piece == P_ROOK) {
+        if (move.src.column == 0) {
+            new_castle_rights &= ~(isWhite ? CR_QUEEN_WHITE : CR_QUEEN_BLACK);
+        }
+        else if (move.src.column == 7) {
+            new_castle_rights &= ~(isWhite ? CR_KING_WHITE : CR_KING_BLACK);
+        }
+    }
+    else if (move.piece == P_KING) {
+        new_castle_rights &= ~(
+            isWhite
+            ? (CR_KING_WHITE|CR_QUEEN_WHITE)
+            :(CR_KING_BLACK|CR_QUEEN_BLACK)
+        );
+    }
+    // by capturing
+    if (move.takes && move.taken_piece == P_ROOK) {
+        if (move.dst.column == 7) {
+            new_castle_rights &= ~(isWhite ? CR_KING_BLACK : CR_KING_WHITE);
+        } else if (move.dst.column == 0) {
+            new_castle_rights &= ~(isWhite ? CR_QUEEN_BLACK : CR_QUEEN_WHITE);
+        }
+    }
+    if (new_castle_rights != old_castle_rights) {
+        set_castle_rights(new_castle_rights);
+    }
+
+    // ------------------------
+    // --- UPDATE HASH KEY ----
+    Hash::make_move(*this, m_key, move, old_castle_rights ^ new_castle_rights);
+
+    // -------------------------------
+    // ------ MOVE PIECES AROUND -----
     if (move.promote) {
         set_piece_at(move.dst, move.promote_piece, move.color);
     }
@@ -96,8 +141,6 @@ void Board::make_move(const Move& move)
     if (move.en_passant) {
         set_piece_at(get_en_passant_pos(), P_EMPTY, C_BLACK);
     }
-
-    bool isWhite = move.color == C_WHITE;
     if (move.castling) {
         int dstCol = move.dst.column;
         int8_t row = move.src.row;
@@ -109,78 +152,65 @@ void Board::make_move(const Move& move)
         set_piece_at(rook_dst, P_ROOK, move.color);
     }
 
-    // remove castling rights
-    if (move.piece == P_ROOK) {
-        if (move.src.column == 0) {
-            set_castle_rights(isWhite ? CR_QUEEN_WHITE : CR_QUEEN_BLACK, false);
-        }
-        else if (move.src.column == 7) {
-            set_castle_rights(isWhite ? CR_KING_WHITE : CR_KING_BLACK, false);
-        }
+    // -------------------------------
+    // ------ EN PASSANT STATE -------
+    if (move.piece == P_PAWN && std::abs(move.src.row - move.dst.row) == 2) {
+        set_en_passant_pos(move.dst.column | CAN_EN_PASSANT);
+    } else {
+        set_en_passant_pos(0);
     }
-    else if (move.piece == P_KING) {
-        set_castle_rights(isWhite ? CR_KING_WHITE : CR_KING_BLACK, false);
-        set_castle_rights(isWhite ? CR_QUEEN_WHITE : CR_QUEEN_BLACK, false);
-    }
+    // -------------------------------
+    // -------- SIDE TO MOVE  --------
+    set_next_move(other_color(get_next_move()));
 
-    if (move.takes && move.taken_piece == P_ROOK) {
-        if (move.dst.column == 7) {
-            set_castle_rights(isWhite ? CR_KING_BLACK : CR_KING_WHITE, false);
-        } else if (move.dst.column == 0) {
-            set_castle_rights(isWhite ? CR_QUEEN_BLACK : CR_QUEEN_WHITE, false);
-        }
-    }
 
+    // -------------------------------
+    // ----- 50 move rule clock  -----
     if (move.takes || move.piece == P_PAWN) {
         m_half_move_counter = 0;
     }
     else {
         ++m_half_move_counter;
     }
-    if (move.color == C_BLACK) {
-        ++m_full_move_counter;
-    }
-    if (move.piece == P_PAWN && std::abs(move.src.row - move.dst.row) == 2) {
-        set_en_passant_pos(move.dst.column | CAN_EN_PASSANT);
-    }
-    else {
-        set_en_passant_pos(0);
-    }
-    set_king_checked(compute_king_checked(C_BLACK) | (compute_king_checked(C_WHITE) << 1));
-    set_next_move(other_color(get_next_move()));
+
+    // ------------------------------------
+    // ----- FULL MOVE COUNTER (not needed because we have depth)??
+    m_full_move_counter += move.color == C_BLACK;
+
+    // ------------------------------------
+    // ----- CHECK STATE (can be computed)
+    uint8_t checks = (
+        compute_king_checked(C_BLACK)
+        | (compute_king_checked(C_WHITE) << 1u)
+    );
+    set_king_checked(checks);
 }
 
 void Board::unmake_move(const Move& move)
 {
+    // -----------------------------------
+    // ------ ALL IRREVERSIBLE STATE -----
+    // (EN PASSANT/50-M-CLOCK/CASTLING-RIGHTS)
+    m_flags = move.m_board_state_before;
+    m_key = move.m_board_key_before;
+
+    // -------------------------------
+    // ------ MOVE PIECES AROUND -----
     set_piece_at(move.src, move.piece, move.color);
     Color clr = move.takes ? other_color(move.color) : C_BLACK;
-    m_flags = move.m_flags_before;
-
     if (move.en_passant) {
         set_piece_at(get_en_passant_pos(), P_PAWN, clr);
         set_piece_at(move.dst, P_EMPTY, C_BLACK);
     } else {
         set_piece_at(move.dst, move.taken_piece, clr);
     }
-
     if (move.castling) {
         int dstCol = move.dst.column;
-        // update rook position
         int8_t row = move.src.row;
         Pos rook_src{ row, dstCol == 6 ? 7 : 0 };
         Pos rook_dst{ row, dstCol == 6 ? 5 : 3 };
-
-        //if (get_piece_at(rook_dst) != P_ROOK || get_color_at(rook_dst) != move.color) {
-        //    throw std::exception("invalid castling state (3)");
-        //}
-        //if (get_piece_at(rook_src) != P_EMPTY) {
-        //    throw std::exception("invalid castling state (4)");
-        //}
-
         set_piece_at(rook_src, P_ROOK, move.color);
         set_piece_at(rook_dst, P_EMPTY, C_BLACK);
     }
-    if (move.color == C_BLACK) {
-        --m_full_move_counter;
-    }
+    m_full_move_counter -= move.color == C_BLACK;
 }

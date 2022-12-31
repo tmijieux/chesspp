@@ -4,6 +4,7 @@
 #include "./board.hpp"
 #include "./board_renderer.hpp"
 #include "./uci.hpp"
+#include "./transposition_table.hpp"
 
 using namespace std;
 
@@ -22,12 +23,11 @@ void UI_mode()
 
 int main(int argc, char *argv[])
 {
-    std::cout << "Tistou Chess by Thomas Mijieux\n";
-    try {
-        std::cout << "sizeof board=" << sizeof Board << "\n";
-        std::cout << "sizeof move=" << sizeof Move << "\n";
-        std::cout << "sizeof std::string=" << sizeof std::string << "\n";
+    std::cout << "Tistou Chess by Thomas Mijieux\n"<<std::flush;
+    return 1;
 
+    // HashParams::init_params();
+    try {
         uci_main_loop();
     }
     catch (std::exception& e) {

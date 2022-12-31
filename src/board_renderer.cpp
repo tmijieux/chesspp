@@ -294,6 +294,7 @@ void BoardRenderer::main_loop(Board &b)
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_s)
             {
                 std::cout << "current position= " << b.get_pos_string() << "\n";
+                std::cout << "current key= " << b.get_key_string() << "\n";
                 std::cout << "current number of moves = " << b.get_full_move() << "\n";
                 std::cout << "current 50move rules counter = " << b.get_half_move() << "\n";
             }
