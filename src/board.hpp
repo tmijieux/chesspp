@@ -6,8 +6,10 @@
 #include <cinttypes>
 #include <string>
 
+class Board;
+struct Move;
+
 #include "./types.hpp"
-#include "./move.hpp"
 
 
 class invalid_fen_string : public std::exception {

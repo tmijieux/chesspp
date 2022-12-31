@@ -5,20 +5,7 @@
 #include "./engine.hpp"
 #include "./evaluation.hpp"
 
-Move::Move(const Board &b) : Move()
-{
-    castles_rights_before[CR_KING_BLACK] = b.get_castle_rights(CR_KING_BLACK);
-    castles_rights_before[CR_KING_WHITE] = b.get_castle_rights(CR_KING_WHITE);
-    castles_rights_before[CR_QUEEN_BLACK] = b.get_castle_rights(CR_QUEEN_BLACK);
-    castles_rights_before[CR_QUEEN_WHITE] = b.get_castle_rights(CR_QUEEN_WHITE);
 
-    checks_before[0] = b.is_king_checked(C_BLACK);
-    checks_before[1] = b.is_king_checked(C_WHITE);
-
-    en_passant_pos_before = b.get_en_passant_pos();
-    half_move_before = b.get_half_move();
-    //position_before = b.get_pos_string();
-}
 
 bool can_en_passant(const Board &b, const Pos &src, const Pos &dst) {
     Pos en_passant_pos = b.get_en_passant_pos();

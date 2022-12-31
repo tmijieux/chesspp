@@ -2,6 +2,7 @@
 #define CHESS_UCI_H
 
 #include <fmt/format.h>
+#include "./move.hpp"
 
 struct GoParams {
     bool infinite;

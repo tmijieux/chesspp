@@ -2,9 +2,14 @@
 #define CHESS_BOARD_RENDERER_H
 
 #ifdef CHESS_ENABLE_SDL
+
+#include <vector>
+
 #include "SDL.h"
+
 #include "./board.hpp"
 #include "./types.hpp"
+#include "./move.hpp"
 
 class BoardRenderer
 {

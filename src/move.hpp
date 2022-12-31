@@ -1,11 +1,13 @@
 #ifndef CHESS_MOVE_H
 #define CHESS_MOVE_H
 
+struct Move;
+
 #include <vector>
 
 
 #include "./types.hpp"
-class Board;
+#include "./Board.hpp"
 
 struct Move
 {
@@ -51,7 +53,7 @@ public:
     //unsigned checks_before : 2;
     //unsigned castle_rights_before : 4;
 
-    //std::string position_before;
+    std::string position_before;
 
     Move():
         evaluation{-999999},
@@ -74,7 +76,20 @@ public:
     {
     }
 
-    Move(const Board& b);
+    Move(const Board& b) : Move()
+    {
+        castles_rights_before[CR_KING_BLACK] = b.get_castle_rights(CR_KING_BLACK);
+        castles_rights_before[CR_KING_WHITE] = b.get_castle_rights(CR_KING_WHITE);
+        castles_rights_before[CR_QUEEN_BLACK] = b.get_castle_rights(CR_QUEEN_BLACK);
+        castles_rights_before[CR_QUEEN_WHITE] = b.get_castle_rights(CR_QUEEN_WHITE);
+
+        checks_before[0] = b.is_king_checked(C_BLACK);
+        checks_before[1] = b.is_king_checked(C_WHITE);
+
+        en_passant_pos_before = b.get_en_passant_pos();
+        half_move_before = b.get_half_move();
+        position_before = b.get_pos_string();
+    }
 
     bool operator==(const Move& o)
     {

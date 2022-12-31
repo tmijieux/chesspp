@@ -2,7 +2,7 @@
 #define CHESS_MOVE_GENERATION_H
 
 #include "./Board.hpp"
-#include "./Move.hpp"
+#include "./move.hpp"
 
 MoveList enumerate_moves(const Board& b, bool only_takes=false);
 MoveList enumerate_attacks(const Board& b, Color to_move);

@@ -1,9 +1,9 @@
 #include <vector>
 #include <iostream>
 
+#include "./FenReader.hpp"
 #include "move_generation.hpp"
 #include "./board.hpp"
-#include "./FenReader.hpp"
 
 void Board::load_position(const std::string& fen_position)
 {
@@ -123,7 +123,7 @@ void Board::make_move(const Move& move)
         if (move.src.column == 0) {
             set_castle_rights(isWhite ? CR_QUEEN_WHITE : CR_QUEEN_BLACK, false);
         }
-        else {
+        else if (move.src.column == 7) {
             set_castle_rights(isWhite ? CR_KING_WHITE : CR_KING_BLACK, false);
         }
     }
@@ -206,5 +206,5 @@ void Board::unmake_move(const Move& move)
         --m_full_move_counter;
     }
     m_next_to_move = move.color;
-    //m_position = move.position_before;
+    m_position = move.position_before;
 }
