@@ -99,9 +99,9 @@ char get_char_by_piece(Piece p)
 void console_draw(const Board& board)
 {
     std::cout << "\n\n";
-    for (int row = 7; row >= 0; --row)
+    for (int8_t row = 7; row >= 0; --row)
     {
-        for (int col = 0; col < 8; ++col)
+        for (int8_t col = 0; col < 8; ++col)
         {
             Pos pos{ row, col };
             Piece p = board.get_piece_at(pos);
@@ -118,7 +118,6 @@ void console_draw(const Board& board)
 
     std::cout << "\nFen: " << board.get_pos_string() << "\n\n";
 }
-
 
 void uci_send_bestmove(const Move &m)
 {
@@ -421,6 +420,7 @@ void uci_main_loop()
 {
     Board b;
     NegamaxEngine engine;
+    b.load_initial_position();
 
     bool debug = false;
     Move best_move;

@@ -18,13 +18,11 @@ enum Piece : uint8_t {
 };
 
 enum Color : uint8_t {
-    C_EMPTY = 0x00,
-    C_BLACK = 0x08,
-    C_WHITE = 0x10,
-    C_INVALID_COLOR = 0x18,
-    C_COLOR_MASK = 0x18,
+    C_BLACK = 0x00,
+    C_WHITE = 0x01,
+    C_EMPTY = 0x02,
 };
-inline Color other_color(Color c) { return (Color)(0x18 - (uint8_t)c); }
+inline constexpr Color other_color(Color c) { return (Color)(0x01 - (uint8_t)c); }
 
 enum CasleRightIndex: uint8_t {
     CR_KING_WHITE  = 0,
@@ -41,8 +39,19 @@ public:
     int8_t row;
     int8_t column;
 
-    Pos(int row_, int column_) :row(row_), column(column_) {}
-    Pos() :Pos(-1, -1) {}
+    Pos(const Pos &p) :row{p.row}, column{ p.column }
+    {
+    }
+
+    Pos(int8_t row_, int8_t col_) :row{ row_ }, column{ col_ }
+    {
+    }
+
+    Pos(int8_t val) :row{ val>>3 }, column{val&7}
+    {
+    }
+
+    Pos() : Pos(-1,-1) {}
 
     bool operator==(const Pos& o) {
         return row == o.row && column == o.column;

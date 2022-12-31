@@ -22,7 +22,12 @@ void UI_mode()
 
 int main(int argc, char *argv[])
 {
+    std::cout << "Tistou Chess by Thomas Mijieux\n";
     try {
+        std::cout << "sizeof board=" << sizeof Board << "\n";
+        std::cout << "sizeof move=" << sizeof Move << "\n";
+        std::cout << "sizeof std::string=" << sizeof std::string << "\n";
+
         uci_main_loop();
     }
     catch (std::exception& e) {

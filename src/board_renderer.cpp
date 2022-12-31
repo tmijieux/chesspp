@@ -139,9 +139,9 @@ void BoardRenderer::draw_squares() const
 }
 void BoardRenderer::draw_pieces(const Board &b) const
 {
-    for (int i = 0; i < 64; ++i) {
-        int col = i % 8;
-        int row = i / 8;
+    for (int8_t i = 0; i < 64; ++i) {
+        int8_t col = i % 8;
+        int8_t row = i / 8;
 
         Pos pos{ row, col };
         Piece p = b.get_piece_at(pos);
@@ -193,8 +193,8 @@ void BoardRenderer::prepare_player_move(Board &b, SDL_Event &e)
         std::cout << "in history mode!\n";
         return;
     }
-    int col = e.button.x / 80;
-    int row = 7 - (e.button.y / 80);
+    int8_t col = e.button.x / 80;
+    int8_t row = 7 - (e.button.y / 80);
     Pos pos{ row, col };
     Color clr = b.get_color_at(pos);
     Color to_move = b.get_next_move();
@@ -219,8 +219,8 @@ void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
         std::cout << "in history mode!\n";
         return;
     }
-    int col = e.button.x / 80;
-    int row = 7 - (e.button.y / 80);
+    int8_t col = e.button.x / 80;
+    int8_t row = 7 - (e.button.y / 80);
     Pos pos{ row, col };
 
     bool player_move_done = false;

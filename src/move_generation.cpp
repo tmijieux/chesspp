@@ -8,11 +8,11 @@
 
 
 bool can_en_passant(const Board &b, const Pos &src, const Pos &dst) {
-    Pos en_passant_pos = b.get_en_passant_pos();
-    if (en_passant_pos.column == -1 || en_passant_pos.row == -1)
+    Pos ep_pos = b.get_en_passant_pos();
+    if (ep_pos.row == 0)
         return false;
 
-    if (en_passant_pos.column == dst.column && en_passant_pos.row == src.row)
+    if (ep_pos.column == dst.column && ep_pos.row == src.row)
     {
         return true;
     }
@@ -23,10 +23,10 @@ void generate_pawn_move(
     const Board& b, const Pos& pos, Color clr,
     MoveList& moveList, bool only_takes, bool pawn_attacks)
 {
-    int offset = clr == C_WHITE ? +1 : -1;
-    int nextRow = pos.row + offset;
+    int8_t offset = clr == C_WHITE ? +1 : -1;
+    int8_t nextRow = pos.row + offset;
 
-    Pos dst{ nextRow, pos.column };
+    Pos dst{ nextRow, pos.column};
     bool can_promote = (nextRow == 7 && clr == C_WHITE) || (nextRow == 0 && clr==C_BLACK);
 
     if (b.get_piece_at(dst) == P_EMPTY && !pawn_attacks && !only_takes)
@@ -49,7 +49,7 @@ void generate_pawn_move(
         }
 
         // initial pawn 2 square move
-        Pos dst2{ nextRow+offset, pos.column };
+        Pos dst2{ nextRow+offset, pos.column};
         if (((pos.row == 1 && clr == C_WHITE)
              || (pos.row == 6 && clr == C_BLACK))
             && b.get_piece_at(dst2) == P_EMPTY) {
@@ -103,6 +103,7 @@ void generate_pawn_move(
         }
     }
 }
+
 
 struct Direction {
     Pos offset;
@@ -224,14 +225,14 @@ void castle_king_side(
     if (!b.get_castle_rights(idxKing)) {
         return;
     }
-    for (int i = 5; i <= 6; ++i) {
+    for (int8_t i = 5; i <= 6; ++i) {
         if (b.get_piece_at(Pos{ pos.row, i }) != P_EMPTY)
         {
             return;
         }
     }
 
-    for (int i = 4; i <= 6; ++i) {
+    for (int8_t i = 4; i <= 6; ++i) {
         if (b.is_square_attacked(Pos{ pos.row, i }, other_color(clr)))
         {
             return;
@@ -244,7 +245,7 @@ void castle_king_side(
 
     Move OO{ b };
     OO.src = pos;
-    OO.dst = Pos{ pos.row, pos.column + 2 };
+    OO.dst = Pos{ pos.row, pos.column + 2};
     OO.piece = P_KING;
     OO.color = clr;
     OO.castling = true;
@@ -259,13 +260,13 @@ void castle_queen_side(
     if (!b.get_castle_rights(idxQueen)) {
         return;
     }
-    for (int i = 3; i >= 1; --i) {
+    for (int8_t i = 3; i >= 1; --i) {
         if (b.get_piece_at(Pos{ pos.row, i }) != P_EMPTY) {
             return;
         }
     }
-    for (int i = 4; i >= 2; --i) {
-        if (b.is_square_attacked( Pos{ pos.row, i }, other_color(clr)))
+    for (int8_t i = 4; i >= 2; --i) {
+        if (b.is_square_attacked( Pos{ pos.row, i}, other_color(clr)))
         {
             return;
         }
@@ -273,7 +274,7 @@ void castle_queen_side(
 
     Move OOO{ b };
     OOO.src = pos;
-    OOO.dst = Pos{ pos.row, pos.column - 2 };
+    OOO.dst = Pos{ pos.row, pos.column - 2};
     OOO.piece = P_KING;
     OOO.color = clr;
     OOO.castling = true;

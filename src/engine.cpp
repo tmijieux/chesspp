@@ -448,7 +448,7 @@ bool NegamaxEngine::iterative_deepening(
         );
         //std::cerr << "\n\n-----------------\n";
         if (m_stop_required_by_timeout || max_time_ms > 0) {
-            uint64_t total_duration = total_timer.get_micro_length() / 1000;
+            uint64_t total_duration = (uint64_t)(total_timer.get_micro_length() / 1000.0);
             if (total_duration > max_time_ms) {
                 uci_send_info_string(
                     "EXIT ON TIME total_duration={} max_time_ms={} move_found={}",
@@ -490,7 +490,7 @@ bool NegamaxEngine::iterative_deepening(
             uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
             double duration = std::max(t.get_length(), 0.001); // cap at 1ms
             uint64_t nps = (uint64_t)(total_nodes / duration);
-            uint64_t time = t.get_micro_length() / 1000;
+            uint64_t time = (uint64_t)(t.get_micro_length() / 1000);
 
             uci_send(
                 "info depth {} score cp {} nodes {} nps {} pv {} time {}\n",
@@ -538,7 +538,7 @@ uint64_t NegamaxEngine::perft(
     MoveList ml = enumerate_moves(b);
     Color clr = b.get_next_move();
 
-    int32_t total = 0;
+    uint64_t total = 0;
     int num_legal_move = 0;
     for (auto& move : ml) {
         b.make_move(move);
@@ -547,7 +547,7 @@ uint64_t NegamaxEngine::perft(
             continue;
         }
         ++num_legal_move;
-        int32_t val = perft(b, max_depth, remaining_depth-1, res);
+        uint64_t val = perft(b, max_depth, remaining_depth-1, res);
 
         total += val;
         b.unmake_move(move);

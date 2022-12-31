@@ -1,6 +1,7 @@
 #include <istream>
 #include <sstream>
 
+#include "./board.hpp"
 #include "./FenReader.hpp"
 #include "./types.hpp"
 #include "./move_generation.hpp"
@@ -53,7 +54,7 @@ Color get_color_by_char(char c)
         return C_WHITE;
     }
     else {
-        return C_INVALID_COLOR;
+        return C_EMPTY;
     }
 }
 
@@ -101,7 +102,7 @@ void fen_read_position(Board &b, std::istream& input)
         {
             int length = c - '0';
             for (int i = 0; i < length; ++i) {
-                b.set_piece_at(cur_pos, P_EMPTY, C_EMPTY);
+                b.set_piece_at(cur_pos, P_EMPTY, C_BLACK);
                 ++cur_pos.column;
                 if (cur_pos.column == 8) {
                     cur_pos.column = 0;
@@ -194,7 +195,10 @@ void fen_read_en_passant_position(Board& b, std::istream& input)
         // if half of position is missing
         throw invalid_fen_string();
     }
-    b.set_en_passant_pos(en_passant_pos);
+    if (en_passant_pos.column == -1)
+        b.set_en_passant_pos(0);
+    else
+        b.set_en_passant_pos(CAN_EN_PASSANT | en_passant_pos.column);
     remove_whitespace(input);
 }
 
@@ -226,9 +230,9 @@ std::string write_fen_position(const Board& b)
     std::memset(buf, 0, sizeof buf);
 
     int x = 0;
-    for (int32_t row = 7; row >= 0; --row) {
+    for (int8_t row = 7; row >= 0; --row) {
         int num_empty = 0;
-        for (int32_t col = 0; col < 8; ++col) {
+        for (int8_t col = 0; col < 8; ++col) {
             auto pos = Pos{ row, col };
             Piece p = b.get_piece_at(pos);
             if (p != P_EMPTY) {
@@ -271,8 +275,9 @@ std::string write_fen_position(const Board& b)
         buf[x++] = '-';
     }
     buf[x++] = ' ';
-    auto eppos = b.get_en_passant_pos();
-    if (eppos.row != -1) {
+    Pos eppos = b.get_en_passant_pos();
+    if (eppos.row > 0) {
+        Color clr = b.get_next_move();
         std::string v = pos_to_square_name(eppos);
         for (auto i = 0; i < v.size(); ++i) {
             buf[x++] = v[i];

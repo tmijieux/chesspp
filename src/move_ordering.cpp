@@ -56,11 +56,11 @@ void reorder_moves(
     KillerMoves &killers)
 {
     bool has_best_move = false;
-    uint32_t offset = 0;
+    size_t offset = 0;
     if (current_depth < previousPv.size()) {
         const Move& bestMove = previousPv[current_depth];
 
-        for (int i = offset+1; i < moveList.size(); ++i) {
+        for (size_t i = offset+1; i < moveList.size(); ++i) {
             if (moveList[i] == bestMove ) {
                 std::swap(moveList[offset], moveList[i]);
                 has_best_move = true;
@@ -70,12 +70,12 @@ void reorder_moves(
             }
         }
     }
-    int startOfKillers = offset;
+    size_t startOfKillers = offset;
 
     if (current_depth < killers.size() && killers[current_depth].size() > 0) {
         auto& mykillers = killers[current_depth];
         for (const auto& killer : mykillers) {
-            for (int i = offset+1; i < moveList.size(); ++i) {
+            for (size_t i = offset+1; i < moveList.size(); ++i) {
                 if (moveList[i] == killer) {
                     std::swap(moveList[offset], moveList[i]);
                     moveList[offset].killer = true;
@@ -101,7 +101,7 @@ void reorder_moves(
     }
 
     bool some_see = false;
-    int startAt = offset;
+    size_t startAt = offset;
 
 
     std::sort(

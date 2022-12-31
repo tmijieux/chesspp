@@ -1,8 +1,9 @@
 #ifndef CHESS_FEN_READER_H
 #define CHESS_FEN_READER_H
 
-#include "./board.hpp"
 #include <string>
+
+#include "./board.hpp"
 
 class FenReader
 {
@@ -11,8 +12,6 @@ public:
 private:
 
 }; // class Fenreader
-
-std::string write_fen_position(const Board& b);
 
 
 #endif // CHESS_FEN_READER_H

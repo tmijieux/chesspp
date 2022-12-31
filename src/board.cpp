@@ -9,7 +9,6 @@ void Board::load_position(const std::string& fen_position)
 {
     FenReader r;
     r.load_position(*this, fen_position);
-    m_position = fen_position;
 }
 
 void Board::load_initial_position()
@@ -22,13 +21,11 @@ Piece Board::get_piece_at(const Pos& pos) const {
     if (pos.column > 7 || pos.column < 0 || pos.row > 7 || pos.row < 0) {
         std::abort();
     }
-    uint8_t piece = m_board[pos.column + pos.row * 8];
-    piece = piece & P_PIECE_MASK;
-    Piece p;
-
-    static_assert(sizeof(p) == sizeof(piece), "mismatched types size");
-    std::memcpy(&p, &piece, sizeof(p));
-    return p;
+    auto x = pos.column + pos.row * 8;
+    uint8_t q = x >> 1;
+    uint8_t n = x & 1;
+    uint8_t val = (m_board[q] >> (4 * n)) & P_PIECE_MASK;
+    return (Piece)val;
 }
 
 Color Board::get_color_at(const Pos& pos) const {
@@ -36,34 +33,32 @@ Color Board::get_color_at(const Pos& pos) const {
     if (pos.column > 7 || pos.column < 0 || pos.row > 7 || pos.row < 0) {
         std::abort();
     }
-    uint8_t color = m_board[pos.column + pos.row * 8];
-    color = color & C_COLOR_MASK;
-    Color c;
-
-    static_assert(sizeof(c) == sizeof(color), "mismatched types size");
-    std::memcpy(&c, &color, sizeof(c));
-    return c;
+    uint8_t x = pos.column + pos.row * 8;
+    uint8_t q = x >> 1;
+    uint8_t n = x & 1;
+    uint8_t val = (m_board[q] >> (4 * n)) & 0x0F;
+    if (val == 0) {
+        return C_EMPTY;
+    }
+    return (Color) (val >> 3);
 }
+
 void Board::set_piece_at(const Pos& pos, Piece p, Color c) {
 
     if (pos.column > 7 || pos.column < 0 || pos.row > 7 || pos.row < 0) {
         std::abort();
     }
-    uint8_t piece;
-    uint8_t color;
-    static_assert(sizeof(p) == sizeof(piece), "mismatched types size");
-    static_assert(sizeof(c) == sizeof(color), "mismatched types size");
+    uint8_t x = pos.column + pos.row * 8;
+    uint8_t q = x >> 1;
+    uint8_t n = x & 1;
 
-    std::memcpy(&piece, &p, sizeof(p));
-    std::memcpy(&color, &c, sizeof(c));
+    uint8_t store = m_board[q];
+    uint8_t newval = ((uint8_t)p) | (((uint8_t)c)<<3);
 
-    m_board[pos.column + pos.row * 8] = piece | color;
+    m_board[q] = (store & (0x0F << (4 * (1-n))))  | (newval << (4 * (n)));
+
     if (p == P_KING) {
-        auto idx = c >> 4;
-        if (idx < 0 || idx >= 2) {
-            std::abort();
-        }
-        m_king_pos[idx] = pos;
+        set_king_pos(pos, c);
     }
 }
 
@@ -80,11 +75,7 @@ bool Board::is_square_attacked(const Pos &p, Color attacked_by_clr) const
 bool Board::compute_king_checked(Color clr) const
 { // start from king position and do 'inversed-move' of all type of piece
   // to see if we land on a threatening piece
-    auto idx = clr >> 4;
-    if (idx < 0 || idx >= 2) {
-        std::abort();
-    }
-    Pos p = m_king_pos[idx];
+    Pos p = get_king_pos(clr);
     MoveList ml;
     find_move_to_position(*this, p, ml, other_color(clr), 1, true, false);
     return ml.size() == 1;
@@ -92,7 +83,7 @@ bool Board::compute_king_checked(Color clr) const
 
 void Board::make_move(const Move& move)
 {
-    if (move.color != m_next_to_move) {
+    if (move.color != get_next_move()) {
         throw std::exception("invalid move for next_to_move state");
     }
     if (move.promote) {
@@ -101,9 +92,9 @@ void Board::make_move(const Move& move)
     else {
         set_piece_at(move.dst, move.piece, move.color);
     }
-    set_piece_at(move.src, P_EMPTY, C_EMPTY);
+    set_piece_at(move.src, P_EMPTY, C_BLACK);
     if (move.en_passant) {
-        set_piece_at(move.en_passant_pos_before, P_EMPTY, C_EMPTY);
+        set_piece_at(get_en_passant_pos(), P_EMPTY, C_BLACK);
     }
 
     bool isWhite = move.color == C_WHITE;
@@ -114,7 +105,7 @@ void Board::make_move(const Move& move)
         Pos rook_dst{ row, dstCol == 6 ? 5 : 3 };
 
         // update rook position
-        set_piece_at(rook_src, P_EMPTY, C_EMPTY);
+        set_piece_at(rook_src, P_EMPTY, C_BLACK);
         set_piece_at(rook_dst, P_ROOK, move.color);
     }
 
@@ -150,26 +141,24 @@ void Board::make_move(const Move& move)
         ++m_full_move_counter;
     }
     if (move.piece == P_PAWN && std::abs(move.src.row - move.dst.row) == 2) {
-        m_en_passant_pos = move.dst;
+        set_en_passant_pos(move.dst.column | CAN_EN_PASSANT);
     }
     else {
-        m_en_passant_pos = Pos{ -1,-1 };
+        set_en_passant_pos(0);
     }
-    m_king_checked[0] = compute_king_checked(C_BLACK);
-    m_king_checked[1] = compute_king_checked(C_WHITE);
-
-    m_next_to_move = other_color(m_next_to_move);
-
-    m_position = write_fen_position(*this);
+    set_king_checked(compute_king_checked(C_BLACK) | (compute_king_checked(C_WHITE) << 1));
+    set_next_move(other_color(get_next_move()));
 }
 
 void Board::unmake_move(const Move& move)
 {
     set_piece_at(move.src, move.piece, move.color);
-    Color clr = move.takes ? other_color(move.color) : C_EMPTY;
+    Color clr = move.takes ? other_color(move.color) : C_BLACK;
+    m_flags = move.m_flags_before;
+
     if (move.en_passant) {
-        set_piece_at(move.en_passant_pos_before, P_PAWN, clr);
-        set_piece_at(move.dst, P_EMPTY, C_EMPTY);
+        set_piece_at(get_en_passant_pos(), P_PAWN, clr);
+        set_piece_at(move.dst, P_EMPTY, C_BLACK);
     } else {
         set_piece_at(move.dst, move.taken_piece, clr);
     }
@@ -189,22 +178,9 @@ void Board::unmake_move(const Move& move)
         //}
 
         set_piece_at(rook_src, P_ROOK, move.color);
-        set_piece_at(rook_dst, P_EMPTY, C_EMPTY);
+        set_piece_at(rook_dst, P_EMPTY, C_BLACK);
     }
-    m_en_passant_pos = move.en_passant_pos_before;
-    m_half_move_counter = move.half_move_before;
-    m_king_checked[0] = move.checks_before[0];
-    m_king_checked[1] = move.checks_before[1];
-
-    m_castle_rights[CR_KING_WHITE] = move.castles_rights_before[CR_KING_WHITE];
-    m_castle_rights[CR_QUEEN_WHITE] = move.castles_rights_before[CR_QUEEN_WHITE];
-    m_castle_rights[CR_KING_BLACK] = move.castles_rights_before[CR_KING_BLACK];
-    m_castle_rights[CR_QUEEN_BLACK] = move.castles_rights_before[CR_QUEEN_BLACK];
-
-
     if (move.color == C_BLACK) {
         --m_full_move_counter;
     }
-    m_next_to_move = move.color;
-    m_position = move.position_before;
 }

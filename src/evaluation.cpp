@@ -17,7 +17,7 @@ int32_t evaluate_board(const Board& b)
         int32_t pvalue = piece_value(p);
         value += coeff * pvalue;
         if (p == P_PAWN) {
-            if (c == C_WHITE) 
+            if (c == C_WHITE)
             {
                 value += pos.row - 0;
             }
