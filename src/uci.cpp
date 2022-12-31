@@ -137,19 +137,24 @@ MoveList parse_moves(Board& b, const StringList& tokens, size_t begin, size_t en
     for (auto j = begin; j < end; ++j)
     {
         const auto& move = tokens[j];
-        if (move.size() != 4) {
+        if (move.size() != 4 && move.size() != 5) {
             auto msg = "invalid move '" + move + "'";
             throw std::exception(msg.c_str());
         }
         std::string s_src = move.substr(0, 2);
         std::string s_dst = move.substr(2, 2);
+        bool promote = move.size() == 5;
+        std::string s_promote = move.substr(4, 1);
+
         Pos src = square_name_to_pos(s_src);
         Pos dst = square_name_to_pos(s_dst);
         MoveList ml;
         add_move_from_position(b, src, ml, false, false);
         bool move_found = false;
         for (auto& m : ml) {
-            if (m.dst == dst) {
+            if (m.dst == dst
+                && m.promote == promote
+                && (!promote || get_char_by_piece(m.promote_piece)==s_promote[0])) {
                 move_found = true;
                 collected_moves.push_back(m);
                 if (apply_to_board) {
