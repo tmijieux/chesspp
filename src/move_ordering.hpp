@@ -5,13 +5,15 @@
 #include "./Board.hpp"
 #include "./move.hpp"
 
-void reorder_mvv_lva(const Board& b, MoveList& moveList);
+void reorder_mvv_lva(const Board& b, MoveList& moveList, size_t begin, size_t end);
 
 void reorder_moves(
     Board &b, MoveList &moveList ,
     int current_depth, int remaining_depth,
     const MoveList &previousPv, KillerMoves &killers, const Move &hash_move, bool has_best_move);
 
+
+void reorder_see(Board& b, MoveList& moveList, size_t begin, size_t end);
 
 int32_t compute_see(Board &b, const Move &m);
 

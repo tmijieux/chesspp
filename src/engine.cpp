@@ -20,13 +20,6 @@ int32_t NegamaxEngine::quiesce(
     }
 
     int32_t standing_pat;
-    //const auto &pos_string = b.get_pos_string();
-    //auto it = m_evaluation.find(pos_string);
-    // if (it != m_evaluation.end())
-    // {
-    //     standing_pat = it->second;
-    // }
-    // else
     {
         SmartTime st{ m_evaluation_timer };
         standing_pat = color * evaluate_board(b);
@@ -54,7 +47,8 @@ int32_t NegamaxEngine::quiesce(
     reorder_moves(b, moveList, 1000, 1000, pv, kl);*/
     {
         SmartTime st{ m_move_ordering_mvv_lva_timer };
-        reorder_mvv_lva(b, moveList);
+        reorder_mvv_lva(b, moveList, 0, moveList.size());
+        //reorder_see(b, moveList, 0, moveList.size());
     }
 
     int num_legal_move = 0;
@@ -104,20 +98,8 @@ int32_t NegamaxEngine::quiesce(
         }
     }
     if (num_legal_move == 0) {
-        Color clr = b.get_next_move();
-        if (b.is_king_checked(clr)) {
-            // deep trouble here (checkmate) , but the more moves to get there,
-            // the less deep trouble because adversary could make a mistake ;)
-            // (this is to select quickest forced mate)
-
-            // should we return beta for fail-hard here ?
-            // other wise aspiration windows may not work ???
-            return -20000 + 5*current_depth;
-        }
-        else {
-            // pat
-            return 0;
-        }
+        // no legal capture
+        // return standing pat (evaluation of doing nothing)
     }
     return alpha;
 }
@@ -247,7 +229,7 @@ int32_t NegamaxEngine::negamax(
 
     bool cutoff = false;
     bool raise_alpha = false;
-    int num_move_visited = 0;
+    int num_move_maked = 0;
     bool use_aspiration = false;
     int32_t oldval = -999999;
 
@@ -255,10 +237,10 @@ int32_t NegamaxEngine::negamax(
         if (move.legal_checked && !move.legal) {
             continue;
         }
-        ++num_move_visited;
         {
             SmartTime st{ m_make_move_timer };
             b.make_move(move);
+            ++num_move_maked;
         }
 
         if (b.is_king_checked(clr)) {
@@ -277,6 +259,7 @@ int32_t NegamaxEngine::negamax(
         ++num_legal_move;
         int32_t val = 0;
         if (use_aspiration && remaining_depth >= 2) {
+            stats.num_aspiration_tries += 1;
             val = -negamax(
                 b, max_depth, remaining_depth - 1, current_depth + 1,
                 -color, -alpha-1, -alpha,
@@ -290,8 +273,11 @@ int32_t NegamaxEngine::negamax(
                 int k = 0;
                 while (val > alpha && val < beta && lower > -beta && k <= 3) {
                     // while search window failed high we increment window
+                    stats.num_aspiration_failures += 1;
+
                     double coeff = 1.0 / (8 >> k);
                     if (k < 3) {
+                        stats.num_aspiration_tries += 1;
                         lower = std::min(-alpha - (int32_t)(coeff * initial_window_size), lower-1);
                     }
                     else {
@@ -380,8 +366,8 @@ int32_t NegamaxEngine::negamax(
         }
     }
 
-    stats.num_move_visited += num_move_visited;
-    stats.num_move_skipped += (uint32_t)moveList.size() - num_move_visited;
+    stats.num_move_maked += num_move_maked;
+    stats.num_move_skipped += (uint32_t)moveList.size() - num_move_maked;
     stats.num_move_generated += (uint32_t)moveList.size();
     stats.num_nodes += 1;
 
@@ -652,76 +638,6 @@ bool NegamaxEngine::iterative_deepening(
     return false;
 }
 
-void NegamaxEngine::display_stats()
-{
-    for (auto& [maxdepth, stats_at_depth] : m_stats) {
-        display_stats(maxdepth);
-    }
-}
-
-void NegamaxEngine::display_stats(int current_maxdepth)
-{
-    std::cerr << "cutoffs for current_maxdepth=" << current_maxdepth << "\n";
-    for (auto& [depth, stats] : m_stats[current_maxdepth]) {
-
-        double percent = (double)stats.num_move_visited / std::max(stats.num_move_generated, 1u);
-        double percent2 = (double)stats.num_cutoffs / std::max(stats.num_nodes, 1u);
-
-        std::cerr << "d=" << depth
-            << "\n   NODES total=" << stats.num_nodes
-            << " leaf=" << stats.num_leaf_nodes
-            << " cutoffs=" << stats.num_cutoffs
-            << " (" << (int)(percent2 * 100.0) << "%) "
-
-            << " pv=" << stats.num_pvnode
-            << " faillow= " << stats.num_faillow_node
-            << " cut_by_killer= " << stats.num_cut_by_killer
-            << " cut_by_hash_move= " << stats.num_cut_by_hash_move
-
-            << "\n   MOVES generated=" << stats.num_move_generated
-            << " skipped=" << stats.num_move_skipped
-            << " visited=" << stats.num_move_visited
-            << " (" << (int)(percent * 100.0) << "%) "
-            << "\n   HASH hits=" << stats.num_hash_hits
-            << " conflicts=" << stats.num_hash_conflicts
-            << "\n\n";
-
-    }
-}
-
-void NegamaxEngine::reset_timers()
-{
-    m_evaluation_timer.reset();
-    m_move_generation_timer.reset();
-    m_move_ordering_timer.reset();
-    m_move_ordering_mvv_lva_timer.reset();
-    m_make_move_timer.reset();
-    m_unmake_move_timer.reset();
-    m_quiescence_timer.reset();
-
-    m_move_generation2_timer.reset();
-    m_make_move2_timer.reset();
-    m_unmake_move2_timer.reset();
-}
-
-void NegamaxEngine::display_timers()
-{
-    std::cerr << "---\n" << std::flush;
-    std::cerr << "m_move_ordering_time=" << m_move_ordering_timer.get_length() << "\n";
-    std::cerr << "m_move_ordering_mvv_lva_time=" << m_move_ordering_mvv_lva_timer.get_length() << "\n";
-    std::cerr << "m_move_generation_time=" << m_move_generation_timer.get_length() << "\n";
-    std::cerr << "m_make_move_time=" << m_make_move_timer.get_length() << "\n";
-    std::cerr << "m_unmake_move_time=" << m_unmake_move_timer.get_length() << "\n";
-    std::cerr << "---\n";
-    std::cerr << "m_quiescence_timer=" << m_quiescence_timer.get_length() << "\n";
-    std::cerr << "---\n";
-    std::cerr << "m_move_generation2_time=" << m_move_generation2_timer.get_length() << "\n";
-    std::cerr << "m_make_move2_time=" << m_make_move2_timer.get_length() << "\n";
-    std::cerr << "m_unmake_move2_time=" << m_unmake_move2_timer.get_length() << "\n";
-    std::cerr << "m_evaluation_time=" << m_evaluation_timer.get_length() << "\n";
-    std::cerr << "---\n" << std::flush;;
-}
-
 std::pair<bool,Move> find_best_move(Board& b)
 {
     Move move;
@@ -797,4 +713,89 @@ void NegamaxEngine::do_perft(Board &b, int depth)
             i, res[i]
         );
     }
+}
+
+
+
+
+// --------------------------------------------------------
+// --- STATS AND REPORTS ----------------------------------
+
+void NegamaxEngine::display_stats()
+{
+    for (auto& [maxdepth, stats_at_depth] : m_stats) {
+        display_stats(maxdepth);
+    }
+}
+
+void NegamaxEngine::display_stats(int current_maxdepth)
+{
+    std::cerr << "cutoffs for current_maxdepth=" << current_maxdepth << "\n";
+    for (auto& [depth, stats] : m_stats[current_maxdepth]) {
+
+        double percent_maked = (double)stats.num_move_maked / std::max(stats.num_move_generated, 1u);
+        double percent_skipped = (double)stats.num_move_skipped / std::max(stats.num_move_generated, 1u);
+
+        double percent_cutoff = (double)stats.num_cutoffs / std::max(stats.num_nodes, 1u);
+        double percent_faillow = (double)stats.num_faillow_node / std::max(stats.num_nodes, 1u);
+
+        std::cerr << "d=" << depth
+            << "\n   NODES total=" << stats.num_nodes
+            << " leaf=" << stats.num_leaf_nodes
+            << " cutoffs=" << stats.num_cutoffs
+            << " (" << (int)(percent_cutoff * 100.0) << "%) "
+
+            << " pv=" << stats.num_pvnode
+            << " faillow= " << stats.num_faillow_node
+            << " (" << (int)(percent_faillow * 100.0) << "%) "
+            << " cut_by_hash_move= " << stats.num_cut_by_hash_move
+            << " cut_by_killer= " << stats.num_cut_by_killer
+
+            << "\n   MOVES generated=" << stats.num_move_generated
+            << " maked=" << stats.num_move_maked
+            << " (" << (int)(percent_maked * 100.0) << "%) "
+            << " skipped=" << stats.num_move_skipped
+            << " (" << (int)(percent_skipped * 100.0) << "%) "
+            << "\n   HASH hits=" << stats.num_hash_hits
+            << " conflicts=" << stats.num_hash_conflicts
+            << "\n   ASPIRATION TOTAL=" << stats.num_aspiration_tries
+            << " failure=" << stats.num_aspiration_failures
+            << " success=" << stats.num_aspiration_tries-stats.num_aspiration_failures
+
+            << "\n\n";
+
+    }
+}
+
+void NegamaxEngine::reset_timers()
+{
+    m_evaluation_timer.reset();
+    m_move_generation_timer.reset();
+    m_move_ordering_timer.reset();
+    m_move_ordering_mvv_lva_timer.reset();
+    m_make_move_timer.reset();
+    m_unmake_move_timer.reset();
+    m_quiescence_timer.reset();
+
+    m_move_generation2_timer.reset();
+    m_make_move2_timer.reset();
+    m_unmake_move2_timer.reset();
+}
+
+void NegamaxEngine::display_timers()
+{
+    std::cerr << "---\n" << std::flush;
+    std::cerr << "m_move_ordering_time=" << m_move_ordering_timer.get_length() << "\n";
+    std::cerr << "m_move_ordering_mvv_lva_time=" << m_move_ordering_mvv_lva_timer.get_length() << "\n";
+    std::cerr << "m_move_generation_time=" << m_move_generation_timer.get_length() << "\n";
+    std::cerr << "m_make_move_time=" << m_make_move_timer.get_length() << "\n";
+    std::cerr << "m_unmake_move_time=" << m_unmake_move_timer.get_length() << "\n";
+    std::cerr << "---\n";
+    std::cerr << "m_quiescence_timer=" << m_quiescence_timer.get_length() << "\n";
+    std::cerr << "---\n";
+    std::cerr << "m_move_generation2_time=" << m_move_generation2_timer.get_length() << "\n";
+    std::cerr << "m_make_move2_time=" << m_make_move2_timer.get_length() << "\n";
+    std::cerr << "m_unmake_move2_time=" << m_unmake_move2_timer.get_length() << "\n";
+    std::cerr << "m_evaluation_time=" << m_evaluation_timer.get_length() << "\n";
+    std::cerr << "---\n" << std::flush;;
 }

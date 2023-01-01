@@ -8,31 +8,28 @@
 #include "./engine.hpp"
 
 
-void reorder_mvv_lva(const Board& b, MoveList& moveList)
+void reorder_mvv_lva(
+    const Board& b, MoveList& moveList,
+    size_t begin, size_t end)
 {
-    //std::sort(moveList.begin(), moveList.end(), [](auto& a, auto& b) {
-    //    // if (!a.takes || !b.takes) {
-    //    //     throw std::exception("some move are not takes here");
-    //    // }
-    //    int aa = piece_value(a.taken_piece) - piece_value(a.piece);
-    //    int bb = piece_value(b.taken_piece) - piece_value(b.piece);
-    //    return aa > bb;
-    //});
-
-    std::sort(moveList.begin(), moveList.end(), [](auto& a, auto& b) {
-        auto ta = piece_value(a.taken_piece);
-        auto tb = piece_value(b.taken_piece);
-        if (ta != tb) {
-            return ta > tb;
-        }
-        auto pa = piece_value(a.piece);
-        auto pb = piece_value(b.piece);
-        return pa < pb;
-    });
+    std::sort(
+      /*  moveList.begin() + begin,
+        moveList.begin() + end,*/
+        moveList.begin(),
+        moveList.end(),
+        [](const auto& a, const auto& b) {
+            auto ta = piece_value(a.taken_piece);
+            auto tb = piece_value(b.taken_piece);
+            if (ta != tb) {
+                return ta > tb;
+            }
+            auto pa = piece_value(a.piece);
+            auto pb = piece_value(b.piece);
+            return pa < pb;
+        });
 }
 
-
-void reorder_move_see(Board &b, MoveList &moveList, int begin, int end)
+void reorder_see(Board &b, MoveList &moveList, size_t begin, size_t end)
 {
     for (auto i = begin; i < end; ++i) {
        auto& m = moveList[i];
@@ -44,10 +41,14 @@ void reorder_move_see(Board &b, MoveList &moveList, int begin, int end)
        }
     }
 
-    std::sort(moveList.begin() + begin, moveList.begin()+end, [](auto& a, auto& b) {
-       return a.see_value > b.see_value;
-    });
+    std::sort(
+        moveList.begin() + begin,
+        moveList.begin() + end,
+        [](const auto& a, const auto& b) {
+            return a.see_value > b.see_value;
+        });
 }
+
 
 void reorder_moves(
     Board &b,
@@ -156,7 +157,7 @@ void reorder_moves(
     } else {
         // INTERNAL ITERATIVE DEEPENING
         int color = b.get_next_move() == C_WHITE ? +1 : -1;
-        int length_before = moveList.size();
+        size_t length_before = moveList.size();
 
         MoveList previousPv;
         NegamaxEngine engine;
@@ -208,7 +209,7 @@ int32_t compute_see(Board &b, const Move &m)
         }
         if (found) {
             val -= compute_see(b, smallest);
-        }
+        } // if not found means there is no takes to this square 
     }
     b.unmake_move(m);
     return val;

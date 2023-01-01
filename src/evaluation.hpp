@@ -12,7 +12,7 @@ constexpr inline int32_t piece_value(Piece p)
     case P_KNIGHT: return 300;
     case P_QUEEN: return 900;
     case P_KING: return 15000;
-    default: return 0;
+    default: return 0; // covers P_EMPTY
     }
 }
 

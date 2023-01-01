@@ -23,11 +23,14 @@ struct Stats {
 
     uint32_t num_nodes;
 
-    uint32_t num_move_visited;//including illegal moves
+    uint32_t num_move_maked;//including illegal moves
     uint32_t num_move_skipped;
     uint32_t num_move_generated;
     uint32_t num_hash_hits;
     uint32_t num_hash_conflicts;
+
+    uint32_t num_aspiration_tries;
+    uint32_t num_aspiration_failures;
 
 
 
@@ -39,20 +42,20 @@ struct Stats {
         num_pvnode{ 0 },
         num_nodes{ 0 },
         num_leaf_nodes{ 0 },
-        num_move_visited{0},
+        num_move_maked{0},
         num_move_skipped{ 0 },
         num_move_generated{ 0 },
         num_hash_hits{ 0 },
-        num_hash_conflicts{ 0 }
+        num_hash_conflicts{ 0 },
+        num_aspiration_tries{ 0 },
+        num_aspiration_failures{ 0 }
     {
     }
 };
 
-using Evaluation = std::unordered_map<std::string,int32_t>;
 struct NegamaxEngine
 {
 private:
-    Evaluation m_evaluation;
     KillerMoves m_killers;
     uint32_t m_max_depth;
     uint32_t m_current_max_depth; // iterative deepening;
@@ -95,6 +98,7 @@ public:
         m_max_depth{ 0 },
         m_current_max_depth{ 0 },
         m_total_nodes{ 0 },
+        m_total_leaf_nodes{ 0 },
         m_total_quiescence_nodes{ 0 },
         m_run_id{ 0 },
         m_uci_mode{ false },
