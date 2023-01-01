@@ -25,6 +25,11 @@ void generate_pawn_move(
 {
     int8_t offset = clr == C_WHITE ? +1 : -1;
     int8_t nextRow = pos.row + offset;
+    if (nextRow < 0 || nextRow > 7) {
+        // this case can happen when generating reverse moves
+        // to find attacks on a particular square
+        return;
+    }
 
     Pos dst{ nextRow, pos.column};
     bool can_promote = (nextRow == 7 && clr == C_WHITE) || (nextRow == 0 && clr==C_BLACK);

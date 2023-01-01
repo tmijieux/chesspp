@@ -24,9 +24,7 @@ void UI_mode()
 int main(int argc, char *argv[])
 {
     std::cout << "Tistou Chess by Thomas Mijieux\n"<<std::flush;
-    return 1;
-
-    // HashParams::init_params();
+    HashParams::init_params();
     try {
         uci_main_loop();
     }

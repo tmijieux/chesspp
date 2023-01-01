@@ -25,7 +25,7 @@ public:
     unsigned en_passant : 1;
     unsigned killer:1;
     unsigned mate_killer:1;
-    unsigned best_from_pv:1;
+    unsigned hash_move:1;
     unsigned takes:1;
     unsigned castling:1;
     unsigned legal : 1;
@@ -45,7 +45,7 @@ public:
         evaluation{-999999},
         see_value{0},
         killer{false},
-        best_from_pv{false},
+        hash_move{false},
         en_passant{false},
         piece{P_INVALID_PIECE},
         color{C_BLACK},

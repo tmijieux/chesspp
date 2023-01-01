@@ -1,9 +1,11 @@
 #include <iostream>
 #include <unordered_map>
+#include <algorithm>
 
 #include "./move_generation.hpp"
 #include "./move_ordering.hpp"
 #include "./evaluation.hpp"
+#include "./engine.hpp"
 
 
 void reorder_mvv_lva(const Board& b, MoveList& moveList)
@@ -76,14 +78,15 @@ void reorder_moves(
             if (moveList[i] == hash_move ) {
                 std::swap(moveList[offset], moveList[i]);
                 has_best_move = true;
-                moveList[offset].best_from_pv = true;
+                moveList[offset].hash_move = true;
                 ++offset;
                 break;
             }
         }
     }
-    size_t startOfKillers = offset;
 
+    bool some_killers = false;
+    size_t startOfKillers = offset;
     if (current_depth < killers.size() && killers[current_depth].size() > 0) {
         auto& mykillers = killers[current_depth];
         for (const auto& killer : mykillers) {
@@ -92,12 +95,15 @@ void reorder_moves(
                     std::swap(moveList[offset], moveList[i]);
                     moveList[offset].killer = true;
                     ++offset;
+                    some_killers = true;
                     break;
                 }
             }
         }
     }
-    if (startOfKillers < offset) {
+
+    if (some_killers) {
+        // put mate killers before other mates
         std::sort(
             moveList.begin()+startOfKillers, moveList.begin()+offset,
             [](const auto& a, const auto& b) {
@@ -112,96 +118,62 @@ void reorder_moves(
         );
     }
 
-    bool some_see = false;
-    size_t startAt = offset;
+    // size_t startAt = offset;
 
-
-    std::sort(
-        moveList.begin()+startAt, moveList.end(),
-        [](const auto& a, const auto& b) {
-            auto ta = piece_value(a.taken_piece);
-            auto tb = piece_value(b.taken_piece);
-            if (ta != tb) {
-                return ta > tb;
-            }
-            auto pa = piece_value(a.piece);
-            auto pb = piece_value(b.piece);
-            return pa < pb;
-        }
-    );
-
-    //auto size = moveList.size();
-    //for (auto i = offset; i < size; ++i) {
-    //    auto& m = moveList[i];
-    //    if (m.takes) {
-    //        m.see_value = compute_see(b, m);
-    //    }
-    //    else {
-    //        m.see_value = 0;
-    //    }
-    //    some_see = true;
-    //}
-
-    //std::sort(moveList.begin() + offset, moveList.end(), [](auto& a, auto& b) {
-    //    return a.see_value > b.see_value;
-    ///*    if (a.takes && !b.takes) {
-    //        return true;
-    //    }
-    //    if (b.takes && !a.takes) {
-    //        return false;
-    //    }
-    //    if (a.takes && b.takes) {
-    //        auto ta = piece_value(a.taken_piece);
-    //        auto tb = piece_value(b.taken_piece);
-    //        if (ta != tb) {
-    //            return ta > tb;
-    //        }
-    //        auto pa = piece_value(a.piece);
-    //        auto pb = piece_value(b.piece);
-    //    }*/
-    //    return &a < &b;
-    //});
-
-
-    // if (!has_best_move) {
-    //     int color = b.get_next_move() == C_WHITE ? +1 : -1;
-    //     // internal iterative deepening
-    //     if (remaining_depth >= 4 && !some_see) {
-    //         //std::cout << "no best move here ==> GOING DEEP :) \n";
-    //       /*  std::cout << "moveList before=\n";
-    //         for (auto &m : moveList) {
-    //             std::cout << move_to_string(m) << "("<<m.evaluation<<") ";
+    // std::sort(
+    //     moveList.begin()+startAt, moveList.end(),
+    //     [](const auto& a, const auto& b) {
+    //         auto ta = piece_value(a.taken_piece);
+    //         auto tb = piece_value(b.taken_piece);
+    //         if (ta != tb) {
+    //             return ta > tb;
     //         }
-    //         std::cout << "\n";*/
-    //         int length_before = moveList.size();
-
-    //         MoveList previousPv;
-    //         NegamaxEngine engine;
-    //         engine.set_max_depth(2);
-
-    //         int max_depth = 2;
-    //         for (int depth = 1; depth <= max_depth; ++depth) {
-    //             MoveList newPv;
-    //             engine.negamax(
-    //                 b, depth, depth, 0, color,
-    //                 -999999, // alpha
-    //                 +999999, // beta
-    //                 newPv, previousPv, &moveList
-    //             );
-    //             previousPv = std::move(newPv);
-    //         }
-    //         int length_after = moveList.size();
-    //         if (length_before != length_after) {
-
-    //         }
-
-    //         //std::cout << "moveList after=\n";
-    //         //for (auto& m : moveList) {
-    //         //    std::cout << move_to_string(m) << "("<<m.evaluation<<") ";
-    //         //}
-    //         //std::cout << "\n\n\n";
+    //         auto pa = piece_value(a.piece);
+    //         auto pb = piece_value(b.piece);
+    //         return pa < pb;
     //     }
-    // }
+    // );
+
+    if (has_best_move || remaining_depth <= 4) {
+
+        auto size = moveList.size();
+        for (auto i = offset; i < size; ++i) {
+            auto& m = moveList[i];
+            if (m.takes) {
+                m.see_value = compute_see(b, m);
+            }
+            else {
+                m.see_value = 0;
+            }
+        }
+
+        std::sort(
+            moveList.begin() + offset, moveList.end(),
+            [](auto& a, auto& b) {
+                return a.see_value > b.see_value;
+            }
+        );
+    } else {
+        // INTERNAL ITERATIVE DEEPENING
+        int color = b.get_next_move() == C_WHITE ? +1 : -1;
+        int length_before = moveList.size();
+
+        MoveList previousPv;
+        NegamaxEngine engine;
+        engine.set_max_depth(2);
+
+        int max_depth = std::max(remaining_depth/3, 2);
+        for (int depth = 1; depth <= max_depth; ++depth) {
+            MoveList newPv;
+            engine.negamax(
+                b, depth, depth, 0, color,
+                -999999, // alpha
+                +999999, // beta
+                newPv, previousPv, &moveList
+            );
+            previousPv = std::move(newPv);
+        }
+    }
 }
 
 

@@ -55,7 +55,7 @@ private:
 
     //  12 + 4 + 4 + 2 + 1= 23
 
-    bool compute_king_checked(Color) const;
+    int8_t compute_king_checked(Color) const;
 
 public:
     Board():

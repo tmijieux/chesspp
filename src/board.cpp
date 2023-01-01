@@ -74,13 +74,13 @@ bool Board::is_square_attacked(const Pos &p, Color attacked_by_clr) const
     return ml.size() == 1;
 }
 
-bool Board::compute_king_checked(Color clr) const
+int8_t Board::compute_king_checked(Color clr) const
 { // start from king position and do 'inversed-move' of all type of piece
   // to see if we land on a threatening piece
     Pos p = get_king_pos(clr);
     MoveList ml;
     find_move_to_position(*this, p, ml, other_color(clr), 1, true, false);
-    return ml.size() == 1;
+    return ml.size() == 1 ? 1 : 0;
 }
 
 void Board::make_move(const Move& move)

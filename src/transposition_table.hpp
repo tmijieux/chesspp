@@ -66,7 +66,7 @@ struct HashEntry {
 struct Hash
 {
 private:
-    std::unordered_map<uint64_t,HashEntry> m_entries;
+    std::unordered_map<uint32_t,HashEntry> m_entries;
 public:
     Hash(){}
 
@@ -80,7 +80,7 @@ public:
         m_entries.clear();
     }
 
-    inline HashEntry& get(uint64_t k) {
+    inline HashEntry& get(uint32_t k) {
         auto it = m_entries.find(k);
         if (it == m_entries.end()) {
             auto res = m_entries.emplace(k, HashEntry{});
