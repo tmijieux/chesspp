@@ -13,6 +13,7 @@ struct Move
 {
 public:
     int32_t evaluation;
+    int32_t killer_freq;
     int32_t see_value;
 
     Pos src;

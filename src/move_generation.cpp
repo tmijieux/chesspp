@@ -54,7 +54,7 @@ void generate_pawn_move(
         }
 
         // initial pawn 2 square move
-        Pos dst2{ uc(nextRow+offset), pos.column};
+        Pos dst2{ u8(nextRow+offset), pos.column};
         if (((pos.row == 1 && clr == C_WHITE)
              || (pos.row == 6 && clr == C_BLACK))
             && b.get_piece_at(dst2) == P_EMPTY) {
@@ -251,7 +251,7 @@ void castle_king_side(
 
     Move OO{ b };
     OO.src = pos;
-    OO.dst = Pos{ uc(pos.to_val()+2) };
+    OO.dst = Pos{ u8(pos.to_val()+2) };
     OO.piece = P_KING;
     OO.color = clr;
     OO.castling = true;
@@ -281,7 +281,7 @@ void castle_queen_side(
 
     Move OOO{ b };
     OOO.src = pos;
-    OOO.dst = Pos{ uc(pos.to_val() - 2) };
+    OOO.dst = Pos{ u8(pos.to_val() - 2) };
     OOO.piece = P_KING;
     OOO.color = clr;
     OOO.castling = true;

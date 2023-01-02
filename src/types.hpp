@@ -53,24 +53,44 @@ enum CasleRightIndex: uint8_t {
 };
 
 
-inline std::uint8_t uc(unsigned long long value)
+inline constexpr std::uint8_t u8(unsigned long long value)
 {
     return static_cast<std::uint8_t>(value);
 }
 
-inline std::uint8_t operator "" _uc(unsigned long long value)
+inline constexpr std::uint8_t operator "" _u8(unsigned long long value)
 {
     return static_cast<std::uint8_t>(value);
 }
 
-inline std::uint16_t us(unsigned long long value)
+inline constexpr std::uint16_t u16(unsigned long long value)
 {
     return static_cast<std::uint16_t>(value);
 }
 
-inline std::uint16_t operator "" _us(unsigned long long value)
+inline constexpr std::uint16_t operator "" _u16(unsigned long long value)
 {
     return static_cast<std::uint16_t>(value);
+}
+/////////////
+inline constexpr std::uint32_t u32(unsigned long long value)
+{
+    return static_cast<std::uint32_t>(value);
+}
+
+inline constexpr std::uint32_t operator "" _u32(unsigned long long value)
+{
+    return static_cast<std::uint32_t>(value);
+}
+
+inline constexpr std::uint64_t u64(unsigned long long value)
+{
+    return static_cast<std::uint64_t>(value);
+}
+
+inline constexpr std::uint64_t operator "" _u64(unsigned long long value)
+{
+    return static_cast<std::uint64_t>(value);
 }
 
 
@@ -99,8 +119,8 @@ public:
     }
 
     Pos(uint8_t val):
-        row{ uc(val >> 3) },
-        column{ uc(val & 7) }
+        row{ u8(val >> 3) },
+        column{ u8(val & 7) }
     {
     }
 

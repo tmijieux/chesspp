@@ -120,7 +120,7 @@ public:
         m_uci_mode = uci_mode;
         m_uci_go_params = params;
     }
-    void display_timers();
+    void display_timers(Timer&);
     void display_stats();
     void display_stats(int current_maxdepth);
 

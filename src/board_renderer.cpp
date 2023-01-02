@@ -100,10 +100,13 @@ BoardRenderer::BoardRenderer() :
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
 
     for (uint8_t t = P_MIN_PIECE; t <= P_MAX_PIECE; ++t) {
-        // std::string path_white = std::string("../../assets/pngs/") + piece_path_white[t];
-        // std::string path_black = std::string("../../assets/pngs/") + piece_path_black[t];
+#ifdef WIN32
+        std::string path_white = std::string("../../assets/pngs/") + piece_path_white[t];
+        std::string path_black = std::string("../../assets/pngs/") + piece_path_black[t];
+#else
         std::string path_white = std::string("../assets/pngs/") + piece_path_white[t];
         std::string path_black = std::string("../assets/pngs/") + piece_path_black[t];
+#endif
         m_piece_tex_black[t] = IMG_LoadTexture(m_renderer, path_black.c_str());
         m_piece_tex_white[t] = IMG_LoadTexture(m_renderer, path_white.c_str());
     }

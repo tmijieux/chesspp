@@ -102,8 +102,8 @@ void Hash::make_move(const Board& b, uint64_t &hash, const Move &m, uint8_t cast
     {
         uint8_t dstCol = m.dst.column;
         uint8_t row = m.src.row;
-        Pos rook_src{ row, uc(dstCol == 6 ? 7 : 0) };
-        Pos rook_dst{ row, uc(dstCol == 6 ? 5 : 3) };
+        Pos rook_src{ row, u8(dstCol == 6 ? 7 : 0) };
+        Pos rook_dst{ row, u8(dstCol == 6 ? 5 : 3) };
 
         {
             // add rook at dst

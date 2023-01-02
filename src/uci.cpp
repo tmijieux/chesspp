@@ -101,7 +101,7 @@ void console_draw(const Board& board)
     {
         for (uint8_t col = 0; col < 8; ++col)
         {
-            Pos pos{ uc(7-row), col };
+            Pos pos{ u8(7-row), col };
             Piece p = board.get_piece_at(pos);
             Color clr = board.get_color_at(pos);
 
