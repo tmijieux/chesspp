@@ -11,7 +11,7 @@ void reorder_mvv_lva(const Board& b, MoveList& moveList, size_t begin, size_t en
 void reorder_moves(
     Board &b, MoveList &moveList ,
     int current_depth, int remaining_depth,
-    const MoveList &previousPv, KillerMoves &killers, const Move &hash_move, bool has_best_move);
+    KillerMoves &killers, const Move &hash_move, bool has_best_move);
 
 
 void reorder_see(Board& b, MoveList& moveList, size_t begin, size_t end);

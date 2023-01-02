@@ -55,25 +55,11 @@ void reorder_moves(
     MoveList &moveList,
     int current_depth,
     int remaining_depth,
-    const MoveList& previousPv,
     KillerMoves &killers,
     const Move &hash_move, bool has_hash_move)
 {
     bool has_best_move = false;
     size_t offset = 0;
-    //if (current_depth < previousPv.size()) {
-    //    const Move& bestMove = previousPv[current_depth];
-
-    //    for (size_t i = offset+1; i < moveList.size(); ++i) {
-    //        if (moveList[i] == bestMove ) {
-    //            std::swap(moveList[offset], moveList[i]);
-    //            has_best_move = true;
-    //            moveList[offset].best_from_pv = true;
-    //            ++offset;
-    //            break;
-    //        }
-    //    }
-    //}
     if (has_hash_move) {
         for (size_t i = offset+1; i < moveList.size(); ++i) {
             if (moveList[i] == hash_move ) {
@@ -159,21 +145,18 @@ void reorder_moves(
         int color = b.get_next_move() == C_WHITE ? +1 : -1;
         size_t length_before = moveList.size();
 
-        MoveList previousPv;
         NegamaxEngine engine;
         engine.set_max_depth(2);
 
         int max_depth = std::max(remaining_depth/3, 2);
         for (int depth = 1; depth <= max_depth; ++depth) {
-            MoveList newPv;
             engine.negamax(
                 b, depth, depth, 0, color,
                 -999999, // alpha
                 +999999, // beta
-                newPv, previousPv, &moveList,
+                &moveList,
                 true
             );
-            previousPv = std::move(newPv);
         }
     }
 }

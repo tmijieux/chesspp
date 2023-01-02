@@ -130,8 +130,6 @@ public:
         int max_depth, int remaining_depth, int current_depth,
         int color,
         int32_t alpha, int32_t beta,
-        MoveList& parentPv,
-        const MoveList& previousPv,
         MoveList* topLevelOrdering,
         bool internal
         // TranspositionTable &tt,
