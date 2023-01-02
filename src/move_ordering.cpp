@@ -170,7 +170,8 @@ void reorder_moves(
                 b, depth, depth, 0, color,
                 -999999, // alpha
                 +999999, // beta
-                newPv, previousPv, &moveList
+                newPv, previousPv, &moveList,
+                true
             );
             previousPv = std::move(newPv);
         }

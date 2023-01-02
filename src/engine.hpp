@@ -132,7 +132,8 @@ public:
         int32_t alpha, int32_t beta,
         MoveList& parentPv,
         const MoveList& previousPv,
-        MoveList* topLevelOrdering
+        MoveList* topLevelOrdering,
+        bool internal
         // TranspositionTable &tt,
     );
     bool iterative_deepening(
