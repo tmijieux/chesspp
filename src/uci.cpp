@@ -288,6 +288,33 @@ void handle_position_cmd(Board &b,const StringList &tokens)
     parse_moves(b, tokens, i + 1, tokens.size(), true);
 }
 
+void print_help()
+{
+    std::cout << fmt::format(
+        "List of commands \n\n"
+        " UCI:  \n\n"
+        " - uci \n"
+        " - ucinewgame \n"
+        " - setoption \n"
+        " - position \n"
+        " - stop \n"
+        " - go \n"
+        " - isready \n"
+        " - quit \n"
+
+        "\n\n "
+        " Other commands:  \n\n"
+
+        " - perft [n]\n"
+        " - display \n"
+        " - evaluate\n"
+        " - init  : Load initial position\n"
+        " - ui  : open SDL UI\n"
+        " - help  : display this help message\n"
+        "\n"
+    ) << std::flush;
+}
+
 int try_handle_one_command(
     StringList& tokens, bool& debug, bool &move_found,
     Move &best_move, Board &b, NegamaxEngine &engine)
@@ -348,10 +375,6 @@ int try_handle_one_command(
         std::string val = fmt::format("{}",fmt::join(var_value_tokens, " "));
         uci_send_info_string(fmt::format("option '{}' set to '{}'", varname, val));
     }
-    else if (cmd == "register")
-    {
-
-    }
     else if (cmd == "ucinewgame")
     {
 
@@ -379,13 +402,18 @@ int try_handle_one_command(
     {
 
     }
-    else if (cmd == "quit")
+    else if (cmd == "quit" || cmd == "q")
     {
         exit(0);
     }
-    else if (cmd == "d")
+    else if (cmd == "d" || cmd == "display")
     {
         console_draw(b);
+    }
+    else if (cmd == "e" || cmd == "eval" || cmd == "evaluate")
+    {
+        int32_t val = evaluate_board(b);
+        std::cout << "Evaluation=" << val <<"\n";
     }
     else if (cmd == "perft")
     {
@@ -398,7 +426,6 @@ int try_handle_one_command(
     else if (cmd == "ui")
     {
         BoardRenderer r;
-        r.init();
         r.main_loop(b);
     }
     else if (cmd == "init")
@@ -408,6 +435,10 @@ int try_handle_one_command(
     else if (cmd == "clearhash")
     {
         engine.clear_hash();
+    }
+    else if (cmd == "help" || cmd == "h" || cmd == "commands")
+    {
+        print_help();
     }
     else
     {

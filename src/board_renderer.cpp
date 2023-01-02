@@ -88,17 +88,14 @@ BoardRenderer::BoardRenderer() :
 {
     std::fill(std::begin(m_piece_tex_white), std::end(m_piece_tex_white), nullptr);
     std::fill(std::begin(m_piece_tex_black), std::end(m_piece_tex_black), nullptr);
-}
 
-void BoardRenderer::init()
-{
     SDL_Init(SDL_INIT_VIDEO);
     m_window = SDL_CreateWindow("chesspp", 100, 100, 640, 640, 0);
     m_renderer = SDL_CreateRenderer(m_window, -1, SDL_RENDERER_ACCELERATED);
     IMG_Init(IMG_INIT_PNG);
 
+    // custom events
     m_move_event = SDL_RegisterEvents(1);
-    std::cout << "move_event="<<m_move_event<<"\n";
 
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
 
@@ -119,6 +116,7 @@ BoardRenderer::~BoardRenderer()
 
     SDL_DestroyWindow(m_window);
     m_window = nullptr;
+    SDL_Quit();
 }
 
 void BoardRenderer::draw_squares() const
@@ -266,12 +264,13 @@ void BoardRenderer::main_loop(Board &b)
 
     while (!quit)
     {
-        SDL_Event e;
-        while (SDL_WaitEventTimeout(&e, 100) != 0)
+        SDL_Event e = {0};
+        while (SDL_WaitEvent(&e) != 0)
         {
             // User requests quit
-            if (e.type == SDL_QUIT)
+            if (e.type == SDL_QUIT || e.type == SDL_APP_TERMINATING)
             {
+                std::cout << "quitting UI!\n";
                 quit = true;
                 break;
             }
@@ -284,6 +283,12 @@ void BoardRenderer::main_loop(Board &b)
             {
                 do_player_move(b, e);
             }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_q)
+            {
+                std::cout << "quitting UI!\n";
+                quit = true;
+                break;
+            }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_r)
             {
                 b.load_initial_position();
@@ -292,14 +297,14 @@ void BoardRenderer::main_loop(Board &b)
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_s)
             {
-                std::cout << "current position= " << b.get_pos_string() << "\n";
-                std::cout << "current key= " << b.get_key_string() << "\n";
-                std::cout << "current number of moves = " << b.get_full_move() << "\n";
-                std::cout << "current 50move rules counter = " << b.get_half_move() << "\n";
+                std::cout << "\n\nFen:  " << b.get_pos_string() << "\n";
+                std::cout << "Key:  " << b.get_key_string() << "\n";
+                std::cout << "Number of moves: " << b.get_full_move() << "\n";
+                std::cout << "50 move rules counter: " << (int)b.get_half_move() << "\n\n";
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_e)
             {
-                std::cout << "current eval= " << evaluate_board(b) << "\n";
+                std::cout << "Evaluation: " << evaluate_board(b) << "\n";
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_p)
             {
@@ -328,8 +333,17 @@ void BoardRenderer::main_loop(Board &b)
                     draw(m_history[m_current_history_pos]);
                 }
             }
+            //else if (e.type == SDL_EventType::SDL_VIDEOEXPOSE)
+            else if (e.type == SDL_MOUSEMOTION)
+            {
+            }
+            else if (e.type == SDL_WINDOWEVENT || e.type == SDL_DISPLAYEVENT)
+            {
+                m_need_redraw = true;
+            }
 
-            if (m_need_redraw) {
+            if (m_need_redraw)
+            {
                 m_need_redraw = false;
                 m_history_mode = false;
                 m_current_history_pos = m_history.size() - 1;

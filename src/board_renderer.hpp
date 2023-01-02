@@ -19,6 +19,7 @@ private:
     SDL_Texture *m_piece_tex_white[P_NUM_PIECE];
     SDL_Texture* m_piece_tex_black[P_NUM_PIECE];
 
+    // custom events
     int m_move_event;
 
     std::vector<Board> m_history;
@@ -36,7 +37,6 @@ private:
     void do_player_move(Board &b, SDL_Event&);
 
 public:
-    void init();
     BoardRenderer();
     ~BoardRenderer();
     void draw(const Board& board) const;

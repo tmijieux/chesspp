@@ -5,37 +5,32 @@
 
 int32_t evaluate_board(const Board& b)
 {
-    uint32_t value = 0;
+    int32_t value = 0;
+    int32_t material = 0;
+    int32_t pawn_position = 0;
 
     for (uint8_t i = 0; i < 64; ++i) {
         Pos pos{ i };
 
         Color c = b.get_color_at(pos);
         Piece p = b.get_piece_at(pos);
-        int32_t coeff = c == C_WHITE ? +1 : -1;
-
+        int32_t sign = 2 * c -1;// BLACK=-1 WHITE=-1
         int32_t pvalue = piece_value(p);
-        value += coeff * pvalue;
-        if (p == P_PAWN) {
-            if (c == C_WHITE)
-            {
-                value += pos.row - 0;
-            }
-            else
-            {
-                value -= 7 - pos.row;
-            }
 
-            if (pos.row >= 5 && c == C_WHITE)
-            {
-                value += (pos.row - 4) * 80;
-            }
-            else if (pos.row <= 2 && c == C_BLACK)
-            {
-                value -= (3 - pos.row) * 80;
-            }
-        }
+        material += sign * pvalue;
+
+        int32_t r0 = 7 * (1 - c);
+
+        double coeff = 2.5 - std::abs(3.5 - pos.column);
+        pawn_position += coeff * (p == P_PAWN) * (pos.row - r0) * 10;
+
+        int32_t r1 = 3+c;
+        int r2 = r1 + sign;
+        int q = sign * (pos.row - r1) >= 0 &&  (c != 2);
+        pawn_position += q * (pos.row - r2) * 20;
     }
+    value += material;
+    value += pawn_position;
     //auto attackListWhite = enumerate_attacks(b, C_WHITE);
     //auto attackListBlack = enumerate_attacks(b, C_BLACK);
     //for (const auto& m : attackListWhite) {

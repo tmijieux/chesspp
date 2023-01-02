@@ -213,4 +213,5 @@ void Board::unmake_move(const Move& move)
         set_piece_at(rook_dst, P_EMPTY, C_BLACK);
     }
     m_full_move_counter -= move.color == C_BLACK;
+    m_half_move_counter = move.half_move_before;
 }

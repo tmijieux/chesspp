@@ -118,7 +118,7 @@ int32_t NegamaxEngine::negamax(
     }
 
 
-
+    bool null_window = beta == alpha+1;
     bool found_best_move = false;
     Move bestMove;
     Move hash_move;
@@ -231,7 +231,7 @@ int32_t NegamaxEngine::negamax(
     bool raise_alpha = false;
     int num_move_maked = 0;
     bool use_aspiration = false;
-    int32_t oldval = -999999;
+    int32_t nodeval = -999999;
 
     for (auto& move : moveList) {
         if (move.legal_checked && !move.legal) {
@@ -304,8 +304,8 @@ int32_t NegamaxEngine::negamax(
             SmartTime st{ m_unmake_move_timer };
             b.unmake_move(move);
         }
-        if (val > oldval) {
-            oldval = val;
+        if (val > nodeval) {
+            nodeval = val;
             bestMove = move;
             found_best_move = true;
         }
@@ -324,7 +324,7 @@ int32_t NegamaxEngine::negamax(
             }
             if (!move.takes && !move.killer) {
                 move.killer = true;
-                move.mate_killer = val >= 20000 - (max_depth+1) * 5;
+                move.mate_killer = val >= 20000 - (max_depth+1);
                 bool already_in = false;
                 auto &killers = m_killers[current_depth];
                 //replace killer
@@ -371,11 +371,25 @@ int32_t NegamaxEngine::negamax(
     stats.num_move_generated += (uint32_t)moveList.size();
     stats.num_nodes += 1;
 
+    if (num_legal_move == 0) {
+        if (b.is_king_checked(clr)) {
+            // deep trouble here (checkmate) , but the more moves to get there,
+            // the less deep trouble because adversary could make a mistake ;)
+            // ( is to select quickest forced mate)
+            nodeval = -20000 + 5*current_depth;
+        }
+        else {
+            // pat
+            nodeval = 0;
+        }
+    }
+
     bool replace = hashentry.key == 0
         || remaining_depth > hashentry.depth
         || (!hashentry.exact_score && !cutoff && raise_alpha);
+
     if (replace) {
-        hashentry.score = alpha;
+        hashentry.score = nodeval;
         hashentry.depth = remaining_depth;
         hashentry.key = bkey;
         if (found_best_move) {
@@ -391,18 +405,6 @@ int32_t NegamaxEngine::negamax(
     }
 
 
-    if (num_legal_move == 0) {
-        if (b.is_king_checked(clr)) {
-            // deep trouble here (checkmate) , but the more moves to get there,
-            // the less deep trouble because adversary could make a mistake ;)
-            // (this is to select quickest forced mate)
-            alpha = -20000 + 5*current_depth;
-        }
-        else {
-            // pat
-            alpha = 0;
-        }
-    }
 
     if (cutoff) {
         // cut-node (fail-high)
@@ -445,8 +447,11 @@ int32_t NegamaxEngine::negamax(
         });
         *topLevelOrdering = moveList;
         // full sort for next level of iterative deepening
+        for (auto &m : moveList) {
+            std::cout << move_to_string(m) << " "<< m.evaluation<< " \n";
+        }
     }
-    return alpha;
+    return nodeval;
 }
 
 void NegamaxEngine::_start_uci_background(Board &b)

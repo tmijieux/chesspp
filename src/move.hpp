@@ -17,10 +17,11 @@ public:
 
     Pos src;
     Pos dst;
-    Piece piece;
-    Color color;
-    Piece taken_piece;
 
+    Color color;
+    Piece piece;
+    Piece taken_piece;
+    Piece promote_piece;
 
     unsigned en_passant : 1;
     unsigned killer:1;
@@ -32,13 +33,9 @@ public:
     unsigned legal_checked : 1;
     unsigned promote : 1;
 
-    //bool promote;
-    Piece promote_piece;
-
     // remember some of state of board before move
     uint32_t m_board_state_before;
     uint64_t m_board_key_before;
-
     uint8_t half_move_before;
 
     Move():

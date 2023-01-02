@@ -15,9 +15,7 @@ void UI_mode()
     Board board;
     BoardRenderer renderer;
 
-    renderer.init();
     board.load_initial_position();
-
     renderer.main_loop(board);
 }
 
