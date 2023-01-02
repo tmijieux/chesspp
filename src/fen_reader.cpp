@@ -1,9 +1,11 @@
+
+#include <cstring>
 #include <istream>
 #include <sstream>
 
-#include "./board.hpp"
-#include "./FenReader.hpp"
 #include "./types.hpp"
+#include "./fen_reader.hpp"
+#include "./board.hpp"
 #include "./move_generation.hpp"
 
 Piece get_piece_by_char(char c)

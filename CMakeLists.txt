@@ -11,8 +11,11 @@ list(APPEND
   "${PROJECT_SOURCE_DIR}/SDL2_image-2.6.2/cmake/"
 )
 
-include("sdl2-config")
-include("sdl2_image-config")
+#include("sdl2-config")
+#include("sdl2_image-config")
+find_package(SDL2 REQUIRED)
+find_package(SDL2_IMAGE REQUIRED)
+#find_package(SDL2 COMPONENTS image)
 
 add_subdirectory(fmt EXCLUDE_FROM_ALL)
 add_subdirectory(src)

@@ -12,12 +12,6 @@ struct Move;
 #include "./transposition_table.hpp"
 
 std::string write_fen_position(const Board&);
-
-class invalid_fen_string : public std::exception {
-    const char* what() const override {
-        return "invalid fen string";
-    }
-};
 enum {
     CAN_EN_PASSANT = 8,
 };

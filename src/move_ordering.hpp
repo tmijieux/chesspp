@@ -2,7 +2,8 @@
 #define CHESS_MOVE_ORDERING_H
 
 #include <cstdint>
-#include "./Board.hpp"
+
+#include "./board.hpp"
 #include "./move.hpp"
 
 void reorder_mvv_lva(const Board& b, MoveList& moveList, size_t begin, size_t end);

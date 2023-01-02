@@ -10,7 +10,6 @@
 #include <cstring>
 #include <iostream>
 
-
 #include "./types.hpp"
 
 
@@ -28,6 +27,9 @@ typedef struct _timeval {
 
 int gettimeofday(my_timeval_t* tp, struct timezone* tzp);
 //
+#else
+using  my_timeval_t = timeval ;
+
 
 #endif
 
@@ -55,7 +57,7 @@ public:
     void start()
     {
         if (m_running)
-            throw std::exception("timer is already started");
+            throw chess_exception("timer is already started");
 
         gettimeofday(&m_last_start, NULL);
         m_running = true;
@@ -64,7 +66,7 @@ public:
     void stop()
     {
         if (!m_running)
-            throw std::exception("timer is not running");
+            throw chess_exception("timer is not running");
         my_timeval_t tsp;
         gettimeofday(&tsp, NULL);
         m_length += TIMEVAL_DIFF(tsp, m_last_start);

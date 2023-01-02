@@ -7,7 +7,7 @@ struct Move;
 
 
 #include "./types.hpp"
-#include "./Board.hpp"
+#include "./board.hpp"
 
 struct Move
 {
@@ -77,7 +77,7 @@ public:
     Move reverse() const
     {
         if (!takes) {
-            throw std::exception("cannot reverse if not capture");
+            throw chess_exception("cannot reverse if not capture");
         }
         Move m;
         m.dst = src;

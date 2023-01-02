@@ -1,6 +1,27 @@
 #ifndef CHESS_TYPES_H
 #define CHESS_TYPES_H
 
+
+class chess_exception : public std::exception {
+private:
+    std::string m_what;
+public:
+    chess_exception(const std::string &what):
+        m_what(what)
+    {
+    }
+
+    const char* what() const noexcept override {
+        return m_what.c_str();
+    }
+};
+
+class invalid_fen_string : public std::exception {
+    const char* what() const noexcept override {
+        return "invalid fen string";
+    }
+};
+
 enum Piece : uint8_t {
     P_EMPTY  = 0,
     P_PAWN   = 1,

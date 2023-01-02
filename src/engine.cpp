@@ -471,7 +471,7 @@ void NegamaxEngine::_start_uci_background(Board &b)
             time = basetime / move_count_wanted;
         }
         // remove 200ms to have time finishing and returning move
-        time = std::min(time, std::max(15ull, basetime - 200ull));
+        time = std::min(time, std::max(15ul, basetime - 200ul));
     }
     auto id = ++m_run_id;
 
@@ -510,7 +510,7 @@ void NegamaxEngine::_start_uci_background(Board &b)
 void NegamaxEngine::start_uci_background(Board &b)
 {
     if (m_running) {
-        throw std::exception("engine already running");
+        throw chess_exception("engine already running");
     }
     m_thread = std::thread{
         std::bind( &NegamaxEngine::_start_uci_background,this, b)

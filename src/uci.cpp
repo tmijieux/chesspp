@@ -138,7 +138,7 @@ MoveList parse_moves(Board& b, const StringList& tokens, size_t begin, size_t en
         const auto& move = tokens[j];
         if (move.size() != 4 && move.size() != 5) {
             auto msg = "invalid move '" + move + "'";
-            throw std::exception(msg.c_str());
+            throw chess_exception(msg);
         }
         std::string s_src = move.substr(0, 2);
         std::string s_dst = move.substr(2, 2);
@@ -164,7 +164,7 @@ MoveList parse_moves(Board& b, const StringList& tokens, size_t begin, size_t en
         }
         if (!move_found) {
             auto msg = "invalid move for position '" + move + "'";
-            throw std::exception(msg.c_str());
+            throw chess_exception(msg);
         }
     }
     return collected_moves;
@@ -174,7 +174,7 @@ template<typename I>
 I read_integer(StringList&tokens, size_t &i)
 {
     if (i >= tokens.size() - 1) {
-        throw std::exception("invalid params");
+        throw chess_exception("invalid params");
     }
     size_t pos;
     I val{ 0 };
@@ -259,7 +259,7 @@ GoParams parse_go_params(Board &b, StringList& tokens)
 void handle_position_cmd(Board &b,const StringList &tokens)
 {
     if (tokens.size() < 2) {
-        throw std::exception("invalid position cmd ???");
+        throw chess_exception("invalid position cmd ???");
     }
     const auto &cmd = tokens[1];
     size_t i = 2;
@@ -279,7 +279,7 @@ void handle_position_cmd(Board &b,const StringList &tokens)
         b.load_initial_position();
     } else {
         std::string msg = "invalid subcmd for position '" + cmd + "'\n";
-        throw std::exception(msg.c_str());
+        throw chess_exception(msg);
     }
 
     if (i >= tokens.size() - 1 || tokens[i] != "moves") {

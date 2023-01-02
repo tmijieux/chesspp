@@ -1,7 +1,7 @@
 #include <vector>
 #include <iostream>
 
-#include "./FenReader.hpp"
+#include "./fen_reader.hpp"
 #include "./move_generation.hpp"
 #include "./board.hpp"
 #include "./transposition_table.hpp"

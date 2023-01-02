@@ -1,7 +1,10 @@
 #ifndef CHESS_MOVE_GENERATION_H
 #define CHESS_MOVE_GENERATION_H
 
-#include "./Board.hpp"
+struct Pos;
+class Board;
+
+#include "./board.hpp"
 #include "./move.hpp"
 
 MoveList enumerate_moves(const Board& b, bool only_takes=false);

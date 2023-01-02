@@ -314,7 +314,7 @@ void BoardRenderer::main_loop(Board &b)
                     m_current_history_pos = m_history.size() - 2;
                 }
                 else if (m_history_mode && m_current_history_pos >= 1) {
-                    m_current_history_pos = std::max(m_current_history_pos - 1ull, (uint64_t)0);
+                    m_current_history_pos = std::max(m_current_history_pos - 1ul, (uint64_t)0);
                 }
                 draw(m_history[m_current_history_pos]);
             }

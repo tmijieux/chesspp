@@ -8,8 +8,8 @@ set(tistouchess_src
   types.hpp
   board_renderer.hpp
   board_renderer.cpp
-  FenReader.cpp
-  FenReader.hpp
+  fen_reader.cpp
+  fen_reader.hpp
   move_generation.hpp
   move_generation.cpp
   evaluation.cpp

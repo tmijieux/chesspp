@@ -1,7 +1,7 @@
 #ifndef CHESS_EVALUATION_H
 #define CHESS_EVALUATION_H
 
-#include "./Board.hpp"
+#include "./board.hpp"
 
 constexpr inline int32_t piece_value(Piece p)
 {
