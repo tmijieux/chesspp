@@ -8,7 +8,7 @@ int32_t evaluate_board(const Board& b)
     uint32_t value = 0;
 
     for (uint8_t i = 0; i < 64; ++i) {
-        Pos pos{ i / 8, i % 8 };
+        Pos pos{ i };
 
         Color c = b.get_color_at(pos);
         Piece p = b.get_piece_at(pos);

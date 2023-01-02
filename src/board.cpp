@@ -142,10 +142,10 @@ void Board::make_move(const Move& move)
         set_piece_at(get_en_passant_pos(), P_EMPTY, C_BLACK);
     }
     if (move.castling) {
-        int dstCol = move.dst.column;
-        int8_t row = move.src.row;
-        Pos rook_src{ row, dstCol == 6 ? 7 : 0 };
-        Pos rook_dst{ row, dstCol == 6 ? 5 : 3 };
+        uint8_t dstCol = move.dst.column;
+        uint8_t row = move.src.row;
+        Pos rook_src{ row, uc(dstCol == 6 ? 7 : 0) };
+        Pos rook_dst{ row, uc(dstCol == 6 ? 5 : 3) };
 
         // update rook position
         set_piece_at(rook_src, P_EMPTY, C_BLACK);
@@ -205,10 +205,10 @@ void Board::unmake_move(const Move& move)
         set_piece_at(move.dst, move.taken_piece, clr);
     }
     if (move.castling) {
-        int dstCol = move.dst.column;
-        int8_t row = move.src.row;
-        Pos rook_src{ row, dstCol == 6 ? 7 : 0 };
-        Pos rook_dst{ row, dstCol == 6 ? 5 : 3 };
+        uint8_t dstCol = move.dst.column;
+        uint8_t row = move.src.row;
+        Pos rook_src{ row, uc(dstCol == 6 ? 7 : 0) };
+        Pos rook_dst{ row, uc(dstCol == 6 ? 5 : 3) };
         set_piece_at(rook_src, P_ROOK, move.color);
         set_piece_at(rook_dst, P_EMPTY, C_BLACK);
     }

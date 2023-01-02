@@ -172,11 +172,11 @@ void fen_read_castle_rights(Board& b, std::istream& input)
 
 void fen_read_en_passant_position(Board& b, std::istream& input)
 {
-    Pos en_passant_pos{ -1,-1 };
+    Pos en_passant_pos{ 0 };
     for (;;) {
         char c = input.get();
         if (c == '-') {
-            en_passant_pos = Pos{ -1,-1 };
+            en_passant_pos = Pos{ 0 };
             break;
         }
         if ('a' <= c && c <= 'h') {
@@ -190,12 +190,7 @@ void fen_read_en_passant_position(Board& b, std::istream& input)
         }
     }
 
-    if ((en_passant_pos.column == -1 && en_passant_pos.row != -1)
-        || (en_passant_pos.row == -1 && en_passant_pos.column != -1)) {
-        // if half of position is missing
-        throw invalid_fen_string();
-    }
-    if (en_passant_pos.column == -1)
+    if (en_passant_pos.row == 0)
         b.set_en_passant_pos(0);
     else
         b.set_en_passant_pos(CAN_EN_PASSANT | en_passant_pos.column);
@@ -230,9 +225,10 @@ std::string write_fen_position(const Board& b)
     std::memset(buf, 0, sizeof buf);
 
     int x = 0;
-    for (int8_t row = 7; row >= 0; --row) {
+    for (uint8_t irow = 0; irow < 8; ++irow) {
+        uint8_t row = 7 - irow;
         int num_empty = 0;
-        for (int8_t col = 0; col < 8; ++col) {
+        for (uint8_t col = 0; col < 8; ++col) {
             auto pos = Pos{ row, col };
             Piece p = b.get_piece_at(pos);
             if (p != P_EMPTY) {

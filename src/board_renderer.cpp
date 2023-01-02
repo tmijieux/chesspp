@@ -103,8 +103,10 @@ void BoardRenderer::init()
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
 
     for (uint8_t t = P_MIN_PIECE; t <= P_MAX_PIECE; ++t) {
-        std::string path_white = std::string("../../assets/pngs/") + piece_path_white[t];
-        std::string path_black = std::string("../../assets/pngs/") + piece_path_black[t];
+        // std::string path_white = std::string("../../assets/pngs/") + piece_path_white[t];
+        // std::string path_black = std::string("../../assets/pngs/") + piece_path_black[t];
+        std::string path_white = std::string("../assets/pngs/") + piece_path_white[t];
+        std::string path_black = std::string("../assets/pngs/") + piece_path_black[t];
         m_piece_tex_black[t] = IMG_LoadTexture(m_renderer, path_black.c_str());
         m_piece_tex_white[t] = IMG_LoadTexture(m_renderer, path_white.c_str());
     }
@@ -139,17 +141,14 @@ void BoardRenderer::draw_squares() const
 }
 void BoardRenderer::draw_pieces(const Board &b) const
 {
-    for (int8_t i = 0; i < 64; ++i) {
-        int8_t col = i % 8;
-        int8_t row = i / 8;
-
-        Pos pos{ row, col };
+    for (uint8_t i = 0; i < 64; ++i) {
+        Pos pos{ i };
         Piece p = b.get_piece_at(pos);
         Color clr = b.get_color_at(pos);
 
         SDL_Rect rect;
-        rect.x = col * 80 + 10;
-        rect.y = (7-row) * 80 + 10;
+        rect.x = pos.column * 80 + 10;
+        rect.y = (7-pos.row) * 80 + 10;
         rect.h = 60;
         rect.w = 60;
 
@@ -193,8 +192,8 @@ void BoardRenderer::prepare_player_move(Board &b, SDL_Event &e)
         std::cout << "in history mode!\n";
         return;
     }
-    int8_t col = e.button.x / 80;
-    int8_t row = 7 - (e.button.y / 80);
+    uint8_t col = e.button.x / 80;
+    uint8_t row = 7 - (e.button.y / 80);
     Pos pos{ row, col };
     Color clr = b.get_color_at(pos);
     Color to_move = b.get_next_move();
@@ -219,8 +218,8 @@ void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
         std::cout << "in history mode!\n";
         return;
     }
-    int8_t col = e.button.x / 80;
-    int8_t row = 7 - (e.button.y / 80);
+    uint8_t col = e.button.x / 80;
+    uint8_t row = 7 - (e.button.y / 80);
     Pos pos{ row, col };
 
     bool player_move_done = false;
@@ -268,7 +267,7 @@ void BoardRenderer::main_loop(Board &b)
     while (!quit)
     {
         SDL_Event e;
-        while (SDL_PollEvent(&e) != 0)
+        while (SDL_WaitEventTimeout(&e, 100) != 0)
         {
             // User requests quit
             if (e.type == SDL_QUIT)

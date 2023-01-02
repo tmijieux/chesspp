@@ -109,7 +109,7 @@ public:
         int newval = (val & (0x3Fu << (6 * (1 - c)))) | ((x & 0x3Fu) << (6 * c));
         m_flags = (m_flags & ~(0xFFFu << KING_POS_I)) ^ (newval << KING_POS_I);
     }
-    void set_piece_at(const Pos&pos, Piece piece, Color color);
+    void set_piece_at(const Pos& pos, Piece piece, Color color);
     void set_next_move(Color color) {
         //            remove color               and   set it to new value
         m_flags = (m_flags & ~(1u << NEXT_COLOR_I)) | (color << NEXT_COLOR_I);

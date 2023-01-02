@@ -100,16 +100,16 @@ void Hash::make_move(const Board& b, uint64_t &hash, const Move &m, uint8_t cast
 
     if (m.castling)
     {
-        int dstCol = m.dst.column;
-        int8_t row = m.src.row;
-        Pos rook_src{ row, dstCol == 6 ? 7 : 0 };
-        Pos rook_dst{ row, dstCol == 6 ? 5 : 3 };
+        uint8_t dstCol = m.dst.column;
+        uint8_t row = m.src.row;
+        Pos rook_src{ row, uc(dstCol == 6 ? 7 : 0) };
+        Pos rook_dst{ row, uc(dstCol == 6 ? 5 : 3) };
 
         {
             // add rook at dst
             Piece dp2 = P_ROOK;
             Color dc2 = m.color;
-            int dy = rook_dst.row * 8 + rook_dst.column;
+            uint8_t dy = rook_dst.row * 8 + rook_dst.column;
             auto dix = (dy * NUM_PIECE) + ((dp2 - 1) + (6 * dc2));
             hash ^= HashParams::piece[PIECE_OFFSET + dix];
         }
@@ -118,7 +118,7 @@ void Hash::make_move(const Board& b, uint64_t &hash, const Move &m, uint8_t cast
             // remove rook at src
             Piece sp = P_ROOK;
             Color sc = m.color;
-            int sy = rook_src.row * 8 + rook_src.column;
+            uint8_t sy = rook_src.row * 8 + rook_src.column;
             auto six = (sy * NUM_PIECE) + ((sp - 1) + (6 * sc));
             hash ^= HashParams::piece[PIECE_OFFSET + six];
         }

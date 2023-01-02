@@ -53,31 +53,66 @@ enum CasleRightIndex: uint8_t {
 };
 
 
+inline std::uint8_t uc(unsigned long long value)
+{
+    return static_cast<std::uint8_t>(value);
+}
+
+inline std::uint8_t operator "" _uc(unsigned long long value)
+{
+    return static_cast<std::uint8_t>(value);
+}
+
+inline std::uint16_t us(unsigned long long value)
+{
+    return static_cast<std::uint16_t>(value);
+}
+
+inline std::uint16_t operator "" _us(unsigned long long value)
+{
+    return static_cast<std::uint16_t>(value);
+}
+
+
+struct Vec {
+    int8_t row;
+    int8_t column;
+};
+
 struct Pos {
 public:
     // signed row:6;
     // signed column:6;
-    int8_t row;
-    int8_t column;
+    uint8_t row;
+    uint8_t column;
 
-    Pos(const Pos &p) :row{p.row}, column{ p.column }
+    Pos(const Pos &p):
+        row{p.row},
+        column{ p.column }
     {
     }
 
-    Pos(int8_t row_, int8_t col_) :row{ row_ }, column{ col_ }
+    Pos(uint8_t row_, uint8_t col_):
+        row{ row_ },
+        column{ col_ }
     {
     }
 
-    Pos(int8_t val) :row{ val>>3 }, column{val&7}
+    Pos(uint8_t val):
+        row{ uc(val >> 3) },
+        column{ uc(val & 7) }
     {
     }
 
-    Pos() : Pos(-1,-1) {}
+    Pos():
+        Pos(0,0)
+    {
+    }
 
     bool operator==(const Pos& o) const {
         return row == o.row && column == o.column;
     }
-    const int8_t to_val() const { return row * 8 + column; }
+    const uint8_t to_val() const { return row * 8 + column; }
 
     Pos& operator=(const Pos& o) {
         column = o.column;

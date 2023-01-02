@@ -97,11 +97,11 @@ inline constexpr char get_char_by_piece(Piece p)
 void console_draw(const Board& board)
 {
     std::cout << "\n\n";
-    for (int8_t row = 7; row >= 0; --row)
+    for (uint8_t row = 0; row < 8; ++row)
     {
-        for (int8_t col = 0; col < 8; ++col)
+        for (uint8_t col = 0; col < 8; ++col)
         {
-            Pos pos{ row, col };
+            Pos pos{ uc(7-row), col };
             Piece p = board.get_piece_at(pos);
             Color clr = board.get_color_at(pos);
 

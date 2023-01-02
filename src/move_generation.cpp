@@ -24,8 +24,8 @@ void generate_pawn_move(
     MoveList& moveList, bool only_takes, bool pawn_attacks)
 {
     int8_t offset = clr == C_WHITE ? +1 : -1;
-    int8_t nextRow = pos.row + offset;
-    if (nextRow < 0 || nextRow > 7) {
+    uint8_t nextRow = pos.row + offset;
+    if (nextRow > 7) {
         // this case can happen when generating reverse moves
         // to find attacks on a particular square
         return;
@@ -54,7 +54,7 @@ void generate_pawn_move(
         }
 
         // initial pawn 2 square move
-        Pos dst2{ nextRow+offset, pos.column};
+        Pos dst2{ uc(nextRow+offset), pos.column};
         if (((pos.row == 1 && clr == C_WHITE)
              || (pos.row == 6 && clr == C_BLACK))
             && b.get_piece_at(dst2) == P_EMPTY) {
@@ -79,7 +79,7 @@ void generate_pawn_move(
         Color dst_color = b.get_color_at(dst);
         bool en_passant = can_en_passant(b, pos, dst);
         if (dst_color == other_color(clr)
-            || (pawn_attacks && dst_color == P_EMPTY && !only_takes)
+            || (pawn_attacks && dst_color == C_EMPTY && !only_takes)
             || en_passant)
         {
 
@@ -111,7 +111,7 @@ void generate_pawn_move(
 
 
 struct Direction {
-    Pos offset;
+    Vec offset;
     int maxrange;
 };
 
@@ -231,14 +231,14 @@ void castle_king_side(
     if ((rights & idxKing) == 0) {
         return;
     }
-    for (int8_t i = 5; i <= 6; ++i) {
+    for (uint8_t i = 5; i <= 6; ++i) {
         if (b.get_piece_at(Pos{ pos.row, i }) != P_EMPTY)
         {
             return;
         }
     }
 
-    for (int8_t i = 4; i <= 6; ++i) {
+    for (uint8_t i = 4; i <= 6; ++i) {
         if (b.is_square_attacked(Pos{ pos.row, i }, other_color(clr)))
         {
             return;
@@ -251,7 +251,7 @@ void castle_king_side(
 
     Move OO{ b };
     OO.src = pos;
-    OO.dst = Pos{ pos.row, pos.column + 2};
+    OO.dst = Pos{ uc(pos.to_val()+2) };
     OO.piece = P_KING;
     OO.color = clr;
     OO.castling = true;
@@ -267,12 +267,12 @@ void castle_queen_side(
     if ((rights & idxQueen) == 0) {
         return;
     }
-    for (int8_t i = 3; i >= 1; --i) {
+    for (uint8_t i = 3; i >= 1; --i) {
         if (b.get_piece_at(Pos{ pos.row, i }) != P_EMPTY) {
             return;
         }
     }
-    for (int8_t i = 4; i >= 2; --i) {
+    for (uint8_t i = 4; i >= 2; --i) {
         if (b.is_square_attacked( Pos{ pos.row, i}, other_color(clr)))
         {
             return;
@@ -281,7 +281,7 @@ void castle_queen_side(
 
     Move OOO{ b };
     OOO.src = pos;
-    OOO.dst = Pos{ pos.row, pos.column - 2};
+    OOO.dst = Pos{ uc(pos.to_val() - 2) };
     OOO.piece = P_KING;
     OOO.color = clr;
     OOO.castling = true;
@@ -423,7 +423,7 @@ MoveList enumerate_moves(const Board& b, bool only_takes)
 
     MoveList moveList;
     for (uint8_t i = 0; i < 64; ++i) {
-        Pos pos{ i / 8,  i % 8 };
+        Pos pos{ i };
         Color clr = b.get_color_at(pos);
         if (clr != to_move) {
             continue;
@@ -452,7 +452,7 @@ MoveList enumerate_attacks(const Board& b, Color to_move)
 {
     MoveList moveList;
     for (uint8_t i = 0; i < 64; ++i) {
-        Pos pos{ i / 8,  i % 8 };
+        Pos pos{ i };
         Color clr = b.get_color_at(pos);
         if (clr != to_move) {
             continue;
@@ -482,8 +482,8 @@ std::string pos_to_square_name(const Pos& p) {
 }
 Pos square_name_to_pos(const std::string& s) {
     return Pos{
-        s[1] - '1',
-        s[0] - 'a'
+        (uint8_t)(s[1] - '1'),
+        (uint8_t)(s[0] - 'a')
     };
 }
 std::string get_char_by_piece_pgn(Piece p)
