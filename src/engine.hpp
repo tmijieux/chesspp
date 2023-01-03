@@ -102,6 +102,8 @@ private:
 
     void extract_pv_from_tt(Board& b, MoveList& pv, int depth);
 
+    std::vector<uint64_t> m_positions_sequence;//store Zkey
+
 public:
     NegamaxEngine():
         m_max_depth{ 0 },
@@ -136,7 +138,7 @@ public:
     int32_t quiesce(Board& b, int color, int32_t alpha, int32_t beta, int depth);
     int32_t negamax(
         Board& b,
-        int max_depth, int remaining_depth, int current_depth,
+        int max_depth, int remaining_depth, int ply,
         int color,
         int32_t alpha, int32_t beta,
         MoveList* topLevelOrdering,

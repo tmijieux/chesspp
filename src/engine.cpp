@@ -140,10 +140,23 @@ int32_t NegamaxEngine::negamax(
 
     MoveList currentPvLine;
     auto &stats = m_stats[max_depth][ply];
-    bool hit = false;
+
+    // checks for repetition
+    uint64_t bkey = b.get_key();
+
+    auto psize = m_positions_sequence.size();
+    if (psize < ply + 1) {
+        m_positions_sequence.resize(ply + 1);
+    }
+    m_positions_sequence[ply] = bkey;
+    for (size_t i = 0; i < ply; ++i) {
+        if (m_positions_sequence[i] == bkey) {
+            // repetition
+            return 0; // 0 for draw
+        }
+    }
 
     uint64_t mask = (1<<27) -1;
-    uint64_t bkey = b.get_key();
     uint32_t key = (uint32_t) (bkey & mask);
     auto &hashentry = m_hash.get(key);
 
@@ -204,13 +217,21 @@ int32_t NegamaxEngine::negamax(
     }
 
 
-    if (remaining_depth == 0) {
+    if (remaining_depth <= 0 && !b.is_king_checked(clr) ) {
+        // TODO ... && !b.is_king_checked(clr)
+        // we do not want to go into quiescence if is in check
         stats.num_leaf_nodes += 1;
         m_total_leaf_nodes += 1;
         SmartTime st{ m_quiescence_timer };
         int32_t nodeval = quiesce(b, color, alpha, beta, ply);
         return nodeval;
     }
+    if (remaining_depth)
+    {
+        std::cout << "check extension!\n";
+    }
+
+
     m_total_nodes += 1;
 
     uint32_t num_legal_move = 0;
@@ -684,6 +705,7 @@ bool NegamaxEngine::iterative_deepening(
 
         if (pvLine.size() == 0) {
             // only possibility is the position is already mated
+            std::cerr << "no move no pvline score="<<score<<"\n";
             *move_found = false;
             return false;
         }
