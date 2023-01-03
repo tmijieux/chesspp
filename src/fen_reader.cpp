@@ -208,11 +208,11 @@ void FenReader::load_position(Board &b, const std::string&fen_position) const
     fen_read_castle_rights(b, reader);
     fen_read_en_passant_position(b, reader);
 
-    int half_move = -1;
+    int half_move = 0;
     reader >> half_move;
     b.set_half_move(half_move);
 
-    int full_move = -1;
+    int full_move = 1;
     reader >> full_move;
     b.set_full_move(full_move);
 }

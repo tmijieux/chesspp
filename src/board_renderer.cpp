@@ -224,7 +224,7 @@ void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
     Pos pos{ row, col };
 
     bool player_move_done = false;
-    for (const auto& m : m_candidates_moves) {
+    for (const auto & m : m_candidates_moves) {
         if (m.legal && pos == m.dst) {
             if (m.promote && m.promote_piece != P_QUEEN) {
                 continue;

@@ -16,6 +16,31 @@
 using StringList = std::vector<std::string>;
 
 
+template<typename I>
+I read_integer(const StringList& tokens, size_t& i)
+{
+    if (i >= tokens.size() - 1) {
+        throw chess_exception(
+            fmt::format(
+                "invalid params: tokens is too small tokens.size()={} while i={}",
+                tokens.size(), i
+            ));
+    }
+    size_t pos;
+    I val{ 0 };
+    if constexpr (std::is_same<I, uint32_t>::value) {
+        val = std::stoul(tokens[i + 1], &pos);
+    }
+    else {
+        val = std::stoull(tokens[i + 1], &pos);
+    }
+    if (pos == 0) {
+        val = 0;
+    }
+    i += 2;
+    return val;
+}
+
 inline std::string &ltrim(std::string &s) {
     s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int c) {
         return !std::isspace(c);
@@ -170,26 +195,6 @@ MoveList parse_moves(Board& b, const StringList& tokens, size_t begin, size_t en
     return collected_moves;
 }
 
-template<typename I>
-I read_integer(StringList&tokens, size_t &i)
-{
-    if (i >= tokens.size() - 1) {
-        throw chess_exception("invalid params");
-    }
-    size_t pos;
-    I val{ 0 };
-    if constexpr (std::is_same<I, uint32_t>::value) {
-        val = std::stoul(tokens[i + 1], &pos);
-    }
-    else {
-        val = std::stoull(tokens[i + 1], &pos);
-    }
-    if (pos == 0) {
-        val = 0;
-    }
-    i += 2;
-    return val;
-}
 
 GoParams parse_go_params(Board &b, StringList& tokens)
 {
@@ -256,10 +261,11 @@ GoParams parse_go_params(Board &b, StringList& tokens)
 }
 
 
-void handle_position_cmd(Board &b,const StringList &tokens)
+void handle_position_cmd(Board &b, const StringList &tokens)
 {
     if (tokens.size() < 2) {
-        throw chess_exception("invalid position cmd ???");
+        std::cerr << "invalid position cmd ???";
+        return;
     }
     const auto &cmd = tokens[1];
     size_t i = 2;
@@ -275,11 +281,34 @@ void handle_position_cmd(Board &b,const StringList &tokens)
         }
         auto fenpos = fmt::format("{}", fmt::join(fenpos_tokens, " "));
         b.load_position(fenpos);
-    } else if (cmd == "startpos") {
+    }
+    else if (cmd == "startpos") {
         b.load_initial_position();
+    } else if (cmd == "test" || cmd == "t") {
+        size_t k = 1;
+        auto num = read_integer<uint32_t>(tokens, k);
+        switch (num) {
+        default:
+        case 1: b.load_position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"); break;
+        case 2: b.load_position("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"); break;
+        case 3: b.load_position("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -"); break;
+        case 4: b.load_position("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"); break;
+        case 5: b.load_position("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"); break;
+        case 6: b.load_position("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"); break;
+        }
     } else {
-        std::string msg = "invalid subcmd for position '" + cmd + "'\n";
-        throw chess_exception(msg);
+        i = 1;
+        StringList fenpos_tokens;
+        while (true)
+        {
+            if (i >= tokens.size() || tokens[i] == "moves") {
+                break;
+            }
+            fenpos_tokens.push_back(tokens[i]);
+            ++i;
+        }
+        auto fenpos = fmt::format("{}", fmt::join(fenpos_tokens, " "));
+        b.load_position(fenpos);
     }
 
     if (i >= tokens.size() - 1 || tokens[i] != "moves") {
@@ -379,7 +408,7 @@ int try_handle_one_command(
     {
 
     }
-    else if (cmd == "position")
+    else if (cmd == "position" || cmd == "pos")
     {
         handle_position_cmd(b, tokens);
     }

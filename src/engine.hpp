@@ -13,10 +13,11 @@
 #include "./uci.hpp"
 
 enum NodeType {
-    UNDEFINED=0,
+    UNDEFINED = 0,
     PV_NODE,
     CUT_NODE,
     ALL_NODE,
+    NO_MOVE,
 };
 
 struct Stats {
@@ -99,9 +100,11 @@ private:
     void _start_uci_background(Board& b);
     void reset_timers();
 
-public:
+    void extract_pv_from_tt(Board& b, MoveList& pv, int depth);
 
-    NegamaxEngine() :
+
+public:
+    NegamaxEngine():
         m_max_depth{ 0 },
         m_current_max_depth{ 0 },
         m_total_nodes{ 0 },

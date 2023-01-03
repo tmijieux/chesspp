@@ -205,13 +205,16 @@ int32_t NegamaxEngine::negamax(
     int32_t val  = 0;
 
     if (has_hash_move) {
-        NodeType children;
+        NodeType children = NodeType::UNDEFINED;
         b.make_move(hash_move);
+        hash_move.checks = b.is_king_checked(other_color(clr));
         val = -negamax(
             b, max_depth, remaining_depth - 1, ply + 1,
             -color, -alpha-1, -alpha,
             nullptr, internal, children
         );
+        hash_move.mate = (!!hash_move.checks) && children == NO_MOVE;
+
         if (val > nodeval) {
             nodeval = val;
             best_move = hash_move;
@@ -251,7 +254,7 @@ int32_t NegamaxEngine::negamax(
         }
 
         for (auto &move : moveList) {
-            NodeType children;
+            NodeType children = NodeType::UNDEFINED;
             if (has_hash_move && move == hash_move) {
                 continue;
             }
@@ -275,6 +278,7 @@ int32_t NegamaxEngine::negamax(
                 }
                 continue;
             }
+            move.checks = b.is_king_checked(other_color(clr));
             move.legal_checked = true;
             move.legal = true;
             ++num_legal_move;
@@ -286,6 +290,7 @@ int32_t NegamaxEngine::negamax(
                     -color, -alpha-1, -alpha,
                     nullptr, internal, children
                 );
+                move.mate = (!!move.checks) && children == NO_MOVE;
 
                 if (val > alpha && val < beta) {
                     int32_t lower = -alpha - 1;
@@ -319,6 +324,7 @@ int32_t NegamaxEngine::negamax(
                     -color, -beta, -alpha,
                     nullptr, internal, children
                 );
+                move.mate = (!!move.checks) && children == NO_MOVE;
             }
             {
                 SmartTime st{ m_unmake_move_timer };
@@ -386,6 +392,7 @@ int32_t NegamaxEngine::negamax(
 
 
     if (num_legal_move == 0) {
+        node_type = NO_MOVE;
         if (b.is_king_checked(clr)) {
             // deep trouble here (checkmate) , but the more moves to get there,
             // the less deep trouble because adversary could make a mistake ;)
@@ -449,7 +456,9 @@ int32_t NegamaxEngine::negamax(
         // because we have some other means of reaching a position that is better.
         // We will not make the move that allowed the opponent to put us in this position."
         stats.num_faillow_node += 1;
-        node_type = ALL_NODE;
+        if (node_type != NO_MOVE) {
+            node_type = ALL_NODE;
+        }
         if (replace){
             hashentry.exact_score = false;
             hashentry.lower_bound = false;
@@ -555,6 +564,54 @@ void NegamaxEngine::stop()
     m_running = false;
 }
 
+void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
+{
+    // extract PV  from TT
+    std::cout << "extract PV from TT\n" << std::flush;
+
+    pv.reserve(depth);
+    auto current_depth = depth;
+    while (current_depth > 0)
+    {
+        uint64_t mask = (1 << 27) - 1;
+        uint64_t bkey = b.get_key();
+        uint32_t key = (uint32_t)(bkey & mask);
+
+        auto& hashentry = m_hash.get(key);
+        if (hashentry.key != bkey) {
+            std::cerr << "did not found entry for pv move in TT\n";
+            break;
+        }
+        if (!hashentry.exact_score) { 
+            std::cerr << "entry in TT is not PV-node\n";
+            break;
+        }
+        bool has_hash_move = hashentry.hashmove_src != hashentry.hashmove_dst;
+        if (!has_hash_move) {
+            std::cerr << "no hashmove in TT for PV-node\n";
+            break;
+        }
+        Move hash_move = generate_move_for_squares(
+            b,
+            hashentry.hashmove_src,
+            hashentry.hashmove_dst,
+            hashentry.promote_piece
+        );
+        b.make_move(hash_move);
+        hash_move.checks = b.is_king_checked(other_color(hash_move.color));
+        hash_move.mate = (hashentry.exact_score!=0) && hashentry.score == 20000 - 1;
+        pv.push_back(hash_move);
+        --current_depth;
+        if (hash_move.mate)
+        {
+            break;
+        }
+    }
+    for (auto i = pv.size(); i > 0; --i) {
+        b.unmake_move(pv[i - 1]);
+    }
+}
+
 bool NegamaxEngine::iterative_deepening(
     Board& b, int max_depth,
     Move *best_move, bool *move_found,
@@ -577,7 +634,7 @@ bool NegamaxEngine::iterative_deepening(
         m_total_nodes = 0;
         m_total_leaf_nodes = 0;
         m_total_quiescence_nodes = 0;
-        NodeType node_type;
+        NodeType node_type = NodeType::UNDEFINED;
 
         int32_t score = this->negamax(
             b, depth, depth, 0, color,
@@ -601,48 +658,18 @@ bool NegamaxEngine::iterative_deepening(
             return true;
         }
         t.stop();
-        // extract PV  from TT
-        std::cout <<"extract PV from TT\n"<<std::flush;
-
+     
         MoveList pv;
-        pv.reserve(depth);
-        auto current_depth = depth;
-        while (current_depth > 0)
-        {
-            uint64_t mask = (1<<27) -1;
-            uint64_t bkey = b.get_key();
-            uint32_t key = (uint32_t) (bkey & mask);
-
-            auto &hashentry = m_hash.get(key);
-            if (hashentry.key != bkey) {
-                std::cerr <<"did not found entry for pv move in TT\n";
-                break;
-            }
-            if (!hashentry.exact_score) {
-                std::cerr <<"entry in TT is not PV-node\n";
-                break;
-            }
-            bool has_hash_move = hashentry.hashmove_src != hashentry.hashmove_dst;
-            if (!has_hash_move) {
-                std::cerr <<"no hashmove in TT for PV-node\n";
-                break;
-            }
-            Move hash_move = generate_move_for_squares(
-                b,
-                hashentry.hashmove_src,
-                hashentry.hashmove_dst,
-                hashentry.promote_piece
-            );
-            b.make_move(hash_move);
-            pv.push_back(hash_move);
-            --current_depth;
-        }
-        for (auto i = pv.size(); i > 0; --i){
-            b.unmake_move(pv[i-1]);
-        }
+        extract_pv_from_tt(b, pv, depth);
+  
         if (pv.size() == 0) {
+            // only possibility is the position is already mated
             *move_found = false;
             return false;
+        }
+        if (pv.size() < depth && !pv[pv.size()-1].mate)
+        {
+            std::cout << fmt::format("MISSING {} MOVE IN PV!!!\n", depth - pv.size());
         }
 
         std::vector<std::string> moves_str;

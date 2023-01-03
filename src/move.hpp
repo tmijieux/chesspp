@@ -33,6 +33,8 @@ public:
     unsigned legal : 1;
     unsigned legal_checked : 1;
     unsigned promote : 1;
+    unsigned checks : 1;
+    unsigned mate : 1;
 
     // remember some of state of board before move
     uint32_t m_board_state_before;
@@ -51,7 +53,9 @@ public:
         takes{false},
         castling{false},
         half_move_before(0),
-        promote(false),
+        promote{ false },
+        checks{ false },
+        mate{false},
         promote_piece(P_INVALID_PIECE),
         m_board_state_before{ 0 },
         m_board_key_before{ 0 },

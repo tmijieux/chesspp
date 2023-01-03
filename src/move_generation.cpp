@@ -509,9 +509,11 @@ std::string move_to_string(const Move& m)
         res += "x";
     }
     res += pos_to_square_name(m.dst);
-    if (m.takes) {
-        auto p = get_char_by_piece_pgn(m.taken_piece);
-        res += fmt::format(" (takes {})", p);
+    if (m.mate) {
+        res += "#";
+    }
+    else if (m.checks) {
+        res += "+";
     }
     if (m.takes && m.piece == P_PAWN) {
         res = pos_to_square_name(m.src)[0] + res;
