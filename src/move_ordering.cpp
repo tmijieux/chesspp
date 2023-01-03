@@ -65,6 +65,7 @@ void reorder_moves(
 
         NegamaxEngine engine;
         engine.set_max_depth(2);
+        NodeType children;
 
         int max_depth = std::max(remaining_depth/3, 2);
         for (int depth = 1; depth <= max_depth; ++depth) {
@@ -73,7 +74,8 @@ void reorder_moves(
                 -999999, // alpha
                 +999999, // beta
                 &moveList,
-                true
+                true,
+                children
             );
         }
         return;

@@ -109,7 +109,8 @@ int32_t NegamaxEngine::negamax(
     int color,
     int32_t alpha, int32_t beta,
     MoveList* topLevelOrdering,
-    bool internal
+    bool internal,
+    NodeType &node_type
 ) {
     if (m_stop_required) {
         return beta; // fail-high immediately
@@ -204,11 +205,12 @@ int32_t NegamaxEngine::negamax(
     int32_t val  = 0;
 
     if (has_hash_move) {
+        NodeType children;
         b.make_move(hash_move);
         val = -negamax(
             b, max_depth, remaining_depth - 1, ply + 1,
             -color, -alpha-1, -alpha,
-            nullptr, internal
+            nullptr, internal, children
         );
         if (val > nodeval) {
             nodeval = val;
@@ -249,6 +251,7 @@ int32_t NegamaxEngine::negamax(
         }
 
         for (auto &move : moveList) {
+            NodeType children;
             if (has_hash_move && move == hash_move) {
                 continue;
             }
@@ -281,7 +284,7 @@ int32_t NegamaxEngine::negamax(
                 val = -negamax(
                     b, max_depth, remaining_depth - 1, ply + 1,
                     -color, -alpha-1, -alpha,
-                    nullptr, internal
+                    nullptr, internal, children
                 );
 
                 if (val > alpha && val < beta) {
@@ -304,7 +307,7 @@ int32_t NegamaxEngine::negamax(
                         val = -negamax(
                             b, max_depth, remaining_depth - 1, ply + 1,
                             -color, lower, -alpha,
-                            nullptr, internal
+                            nullptr, internal, children
                         );
                         ++k;
                     }
@@ -314,7 +317,7 @@ int32_t NegamaxEngine::negamax(
                 val = -negamax(
                     b, max_depth, remaining_depth - 1, ply + 1,
                     -color, -beta, -alpha,
-                    nullptr, internal
+                    nullptr, internal, children
                 );
             }
             {
@@ -424,6 +427,7 @@ int32_t NegamaxEngine::negamax(
         // If they can avoid this position, there is no longer any need to search successors,
         // since this position won't happen."
         stats.num_cutoffs += 1;
+        node_type = CUT_NODE;
         if (replace){
             hashentry.exact_score = false;
             hashentry.lower_bound = true;
@@ -432,6 +436,7 @@ int32_t NegamaxEngine::negamax(
     } else if (raise_alpha) {
         // pv-node (new best move)
         stats.num_pvnode += 1;
+        node_type = PV_NODE;
         if (replace){
             hashentry.exact_score = true;
             hashentry.lower_bound = false;
@@ -444,6 +449,7 @@ int32_t NegamaxEngine::negamax(
         // because we have some other means of reaching a position that is better.
         // We will not make the move that allowed the opponent to put us in this position."
         stats.num_faillow_node += 1;
+        node_type = ALL_NODE;
         if (replace){
             hashentry.exact_score = false;
             hashentry.lower_bound = false;
@@ -571,12 +577,13 @@ bool NegamaxEngine::iterative_deepening(
         m_total_nodes = 0;
         m_total_leaf_nodes = 0;
         m_total_quiescence_nodes = 0;
+        NodeType node_type;
 
         int32_t score = this->negamax(
             b, depth, depth, 0, color,
             -999999, // alpha
             +999999, // beta
-            &topLevelOrdering, false
+            &topLevelOrdering, false, node_type
         );
 
         std::cerr << "\n\n\n-----------------\n";
@@ -673,7 +680,7 @@ bool NegamaxEngine::iterative_deepening(
                     "info depth {} score mate {} nodes {} nps {} pv {} time {}\n",
                     depth, mate, total_nodes, nps, fmt::join(moves_str, " "), time
                 );
-            } else{
+            } else {
                 uci_send(
                     "info depth {} score cp {} nodes {} nps {} pv {} time {}\n",
                     depth, score, total_nodes, nps, fmt::join(moves_str, " "), time

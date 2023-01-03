@@ -12,6 +12,13 @@
 #include "./evaluation.hpp"
 #include "./uci.hpp"
 
+enum NodeType {
+    UNDEFINED=0,
+    PV_NODE,
+    CUT_NODE,
+    ALL_NODE,
+};
+
 struct Stats {
     uint32_t num_cutoffs;
     uint32_t num_cut_by_killer;
@@ -131,7 +138,8 @@ public:
         int color,
         int32_t alpha, int32_t beta,
         MoveList* topLevelOrdering,
-        bool internal
+        bool internal,
+        NodeType &node_type
         // TranspositionTable &tt,
     );
     bool iterative_deepening(
