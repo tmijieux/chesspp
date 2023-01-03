@@ -12,6 +12,18 @@
 #include "./uci.hpp"
 
 
+void extract_pv(const Move& m, const MoveList& currentPvLine, MoveList& parentPvLine)
+{
+    parentPvLine.resize(currentPvLine.size() + 1);
+
+    parentPvLine[0] = m;
+    auto size = currentPvLine.size();
+    for (size_t i = 0; i < size; ++i) {
+        parentPvLine[i + 1] = currentPvLine[i];
+    }
+}
+
+
 int32_t NegamaxEngine::quiesce(
     Board& b, int color, int32_t alpha, int32_t beta, int ply)
 {
@@ -103,6 +115,7 @@ int32_t NegamaxEngine::quiesce(
     return nodeval;
 }
 
+
 int32_t NegamaxEngine::negamax(
     Board& b,
     int max_depth, int remaining_depth, int ply,
@@ -110,7 +123,8 @@ int32_t NegamaxEngine::negamax(
     int32_t alpha, int32_t beta,
     MoveList* topLevelOrdering,
     bool internal,
-    NodeType &node_type
+    NodeType &node_type,
+    MoveList &parentPvLine
 ) {
     if (m_stop_required) {
         return beta; // fail-high immediately
@@ -124,12 +138,14 @@ int32_t NegamaxEngine::negamax(
 
     Color clr = b.get_next_move();
 
+    MoveList currentPvLine;
+    auto &stats = m_stats[max_depth][ply];
+    bool hit = false;
+
     uint64_t mask = (1<<27) -1;
     uint64_t bkey = b.get_key();
     uint32_t key = (uint32_t) (bkey & mask);
-
     auto &hashentry = m_hash.get(key);
-    auto &stats = m_stats[max_depth][ply];
 
     if (hashentry.key == bkey) {
         has_hash_move = hashentry.hashmove_src != hashentry.hashmove_dst;
@@ -187,6 +203,7 @@ int32_t NegamaxEngine::negamax(
         stats.num_hash_conflicts++;
     }
 
+
     if (remaining_depth == 0) {
         stats.num_leaf_nodes += 1;
         m_total_leaf_nodes += 1;
@@ -211,7 +228,7 @@ int32_t NegamaxEngine::negamax(
         val = -negamax(
             b, max_depth, remaining_depth - 1, ply + 1,
             -color, -alpha-1, -alpha,
-            nullptr, internal, children
+            nullptr, internal, children, currentPvLine
         );
         hash_move.mate = (!!hash_move.checks) && children == NO_MOVE;
 
@@ -224,6 +241,7 @@ int32_t NegamaxEngine::negamax(
             alpha = val; // pv-node
             raise_alpha = true;
             use_aspiration = true;
+            extract_pv(hash_move, currentPvLine, parentPvLine);
         }
         if (val >= beta) {
             // cut node ! yay !
@@ -288,7 +306,7 @@ int32_t NegamaxEngine::negamax(
                 val = -negamax(
                     b, max_depth, remaining_depth - 1, ply + 1,
                     -color, -alpha-1, -alpha,
-                    nullptr, internal, children
+                    nullptr, internal, children, currentPvLine
                 );
                 move.mate = (!!move.checks) && children == NO_MOVE;
 
@@ -312,7 +330,7 @@ int32_t NegamaxEngine::negamax(
                         val = -negamax(
                             b, max_depth, remaining_depth - 1, ply + 1,
                             -color, lower, -alpha,
-                            nullptr, internal, children
+                            nullptr, internal, children, currentPvLine
                         );
                         ++k;
                     }
@@ -322,7 +340,7 @@ int32_t NegamaxEngine::negamax(
                 val = -negamax(
                     b, max_depth, remaining_depth - 1, ply + 1,
                     -color, -beta, -alpha,
-                    nullptr, internal, children
+                    nullptr, internal, children, currentPvLine
                 );
                 move.mate = (!!move.checks) && children == NO_MOVE;
             }
@@ -382,6 +400,7 @@ int32_t NegamaxEngine::negamax(
                 alpha = val; // pv-node
                 raise_alpha = true;
                 use_aspiration = true;
+                extract_pv(move, currentPvLine, parentPvLine);
             }
         }
     }
@@ -405,7 +424,7 @@ int32_t NegamaxEngine::negamax(
         }
     }
 
-    bool replace = hashentry.key == 0
+    bool replace = hashentry.key == 0 // FIXME must not replace pv
         || remaining_depth > hashentry.depth
         || (!hashentry.exact_score && !cutoff && raise_alpha);
     // if depth is lower but we have an pv-node
@@ -582,7 +601,7 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
             std::cerr << "did not found entry for pv move in TT\n";
             break;
         }
-        if (!hashentry.exact_score) { 
+        if (!hashentry.exact_score) {
             std::cerr << "entry in TT is not PV-node\n";
             break;
         }
@@ -625,6 +644,7 @@ bool NegamaxEngine::iterative_deepening(
     this->set_max_depth(max_depth);
     Timer total_timer;
     total_timer.start();
+    MoveList previousPvLine;
 
     for (int depth = 1; depth <= max_depth; ++depth) {
         Timer t;
@@ -635,12 +655,13 @@ bool NegamaxEngine::iterative_deepening(
         m_total_leaf_nodes = 0;
         m_total_quiescence_nodes = 0;
         NodeType node_type = NodeType::UNDEFINED;
+        MoveList pvLine;
 
         int32_t score = this->negamax(
             b, depth, depth, 0, color,
             -999999, // alpha
             +999999, // beta
-            &topLevelOrdering, false, node_type
+            &topLevelOrdering, false, node_type, pvLine
         );
 
         std::cerr << "\n\n\n-----------------\n";
@@ -658,23 +679,22 @@ bool NegamaxEngine::iterative_deepening(
             return true;
         }
         t.stop();
-     
-        MoveList pv;
-        extract_pv_from_tt(b, pv, depth);
-  
-        if (pv.size() == 0) {
+
+        //extract_pv_from_tt(b, pvLine, depth);
+
+        if (pvLine.size() == 0) {
             // only possibility is the position is already mated
             *move_found = false;
             return false;
         }
-        if (pv.size() < depth && !pv[pv.size()-1].mate)
+        if (pvLine.size() < depth && !pvLine[pvLine.size()-1].mate)
         {
-            std::cout << fmt::format("MISSING {} MOVE IN PV!!!\n", depth - pv.size());
+            std::cout << fmt::format("MISSING {} MOVE IN PV!!!\n", depth - pvLine.size());
         }
 
         std::vector<std::string> moves_str;
-        moves_str.reserve(pv.size());
-        for (const auto& m : pv) {
+        moves_str.reserve(pvLine.size());
+        for (const auto& m : pvLine) {
             moves_str.emplace_back(move_to_string(m));
         }
         uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
@@ -682,8 +702,8 @@ bool NegamaxEngine::iterative_deepening(
         if (depth >= 0) {
 
             moves_str.clear();
-            moves_str.reserve(pv.size());
-            for (const auto& m : pv) {
+            moves_str.reserve(pvLine.size());
+            for (const auto& m : pvLine) {
                 moves_str.emplace_back(move_to_uci_string(m));
             }
             uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
@@ -715,11 +735,13 @@ bool NegamaxEngine::iterative_deepening(
             }
         }
 
-        *best_move = pv[0];
+        *best_move = pvLine[0];
         *move_found = true;
 
         this->display_stats(depth);
         display_timers(t);
+
+        previousPvLine = std::move(pvLine);
 
         std::cerr << "Non-Leaf Nodes="<<m_total_nodes<<"\n";
         std::cerr << "Leaf Nodes="<<m_total_leaf_nodes<<"\n";

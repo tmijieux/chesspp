@@ -102,7 +102,6 @@ private:
 
     void extract_pv_from_tt(Board& b, MoveList& pv, int depth);
 
-
 public:
     NegamaxEngine():
         m_max_depth{ 0 },
@@ -142,7 +141,8 @@ public:
         int32_t alpha, int32_t beta,
         MoveList* topLevelOrdering,
         bool internal,
-        NodeType &node_type
+        NodeType &node_type,
+        MoveList &parentPvLine
         // TranspositionTable &tt,
     );
     bool iterative_deepening(
