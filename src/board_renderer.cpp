@@ -296,6 +296,10 @@ void BoardRenderer::main_loop(Board &b)
             {
                 b.load_initial_position();
                 m_candidates_moves.clear();
+                m_history.clear();
+                m_history.push_back(b);
+                m_current_history_pos = 0;
+                m_history_mode = false;
                 m_need_redraw = true;
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_s)
@@ -334,6 +338,21 @@ void BoardRenderer::main_loop(Board &b)
                         m_history_mode = false;
                     }
                     draw(m_history[m_current_history_pos]);
+                }
+            }
+            else if (e.type == SDL_KEYDOWN)
+            {
+                if (e.key.keysym.scancode >=  SDL_SCANCODE_KP_1
+                    && e.key.keysym.scancode <=  SDL_SCANCODE_KP_9) {
+                    int q  = e.key.keysym.scancode - SDL_SCANCODE_KP_1 + 1;
+                    std::cout << "q="<<q<<"\n";
+                    load_test_position(b, q);
+                    m_need_redraw = true;
+                    m_history.clear();
+                    m_history.push_back(b);
+                    m_current_history_pos = 0;
+                    m_history_mode = false;
+
                 }
             }
             //else if (e.type == SDL_EventType::SDL_VIDEOEXPOSE)

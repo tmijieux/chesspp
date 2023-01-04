@@ -509,6 +509,11 @@ std::string move_to_string(const Move& m)
         res += "x";
     }
     res += pos_to_square_name(m.dst);
+
+    if (m.promote) {
+        res += "=" + piece_to_move_letter(m.promote_piece);
+    }
+
     if (m.mate) {
         res += "#";
     }

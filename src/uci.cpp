@@ -287,15 +287,7 @@ void handle_position_cmd(Board &b, const StringList &tokens)
     } else if (cmd == "test" || cmd == "t") {
         size_t k = 1;
         auto num = read_integer<uint32_t>(tokens, k);
-        switch (num) {
-        default:
-        case 1: b.load_position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"); break;
-        case 2: b.load_position("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"); break;
-        case 3: b.load_position("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - -"); break;
-        case 4: b.load_position("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"); break;
-        case 5: b.load_position("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"); break;
-        case 6: b.load_position("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"); break;
-        }
+        load_test_position(b, num);
     } else {
         i = 1;
         StringList fenpos_tokens;

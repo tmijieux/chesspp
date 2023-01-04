@@ -138,5 +138,5 @@ public:
 }; // class Board
 
 
-
+void load_test_position(Board &b, int position);
 #endif // CHESS_BOARD_H

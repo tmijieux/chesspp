@@ -14,7 +14,7 @@ list(APPEND
 if (WITH_SDL AND WIN32)
   include("sdl2-config")
   include("sdl2_image-config")
-elseif(WITH SDL)
+elseif(WITH_SDL)
   find_package(SDL2 REQUIRED)
   find_package(SDL2_IMAGE REQUIRED)
 endif()

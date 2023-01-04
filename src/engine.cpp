@@ -141,6 +141,11 @@ int32_t NegamaxEngine::negamax(
     MoveList currentPvLine;
     auto &stats = m_stats[max_depth][ply];
 
+    // check for 50moves
+    if (b.get_half_move() >= 50) {
+        return 0;
+    }
+
     // checks for repetition
     uint64_t bkey = b.get_key();
 
@@ -152,6 +157,7 @@ int32_t NegamaxEngine::negamax(
     for (size_t i = 0; i < ply; ++i) {
         if (m_positions_sequence[i] == bkey) {
             // repetition
+            std::cout  <<"repetition!!\n";
             return 0; // 0 for draw
         }
     }
@@ -196,6 +202,9 @@ int32_t NegamaxEngine::negamax(
                         // }
                         // extract_pv(hash_move, currentPvLine, parentPvLine);
                     }
+//                    currentPvLine.clear();
+//                    extract_pv_from_tt(b, currentPvLine, hashentry.depth);
+//                    extract_pv(hash_move, currentPvLine, parentPvLine);
                     return hashentry.score;
                 }
             }
@@ -237,6 +246,10 @@ int32_t NegamaxEngine::negamax(
         int32_t nodeval = quiesce(b, color, alpha, beta, ply);
         return nodeval;
     }
+    // if (remaining_depth <= 0)
+    // {
+    //     std::cout << "check extension!\n";
+    // }
 
 
     m_total_nodes += 1;
@@ -255,7 +268,7 @@ int32_t NegamaxEngine::negamax(
         hash_move.checks = b.is_king_checked(other_color(clr));
         val = -negamax(
             b, max_depth, remaining_depth - 1, ply + 1,
-            -color, -alpha-1, -alpha,
+            -color, -beta, -alpha,
             nullptr, internal, children, currentPvLine
         );
         hash_move.mate = (!!hash_move.checks) && children == NO_MOVE;
