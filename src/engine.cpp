@@ -162,9 +162,8 @@ int32_t NegamaxEngine::negamax(
         }
     }
 
-    uint64_t mask = (1<<27) -1;
-    uint32_t key = (uint32_t) (bkey & mask);
-    auto &hashentry = m_hash.get(key);
+
+    auto &hashentry = m_hash.get(bkey);
 
     if (hashentry.key == bkey) {
         has_hash_move = hashentry.hashmove_src != hashentry.hashmove_dst;
@@ -298,15 +297,16 @@ int32_t NegamaxEngine::negamax(
     MoveList moveList;
     if (!cutoff)
     {
-        if (topLevelOrdering !=  nullptr && topLevelOrdering->size() > 0) {
+        if (topLevelOrdering !=  nullptr && topLevelOrdering->size() > 0)
+        {
             moveList = *topLevelOrdering;
         }
-        else {
-            {
-                SmartTime st{ m_move_generation_timer };
-                moveList = enumerate_moves(b);
-            }
+        else
+        {
+            SmartTime st{ m_move_generation_timer };
+            moveList = enumerate_moves(b);
         }
+
         {
             SmartTime st{ m_move_ordering_timer };
             reorder_moves(b, moveList, ply, remaining_depth,
@@ -638,17 +638,17 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
     auto current_depth = depth;
     while (current_depth > 0)
     {
-        uint64_t mask = (1 << 27) - 1;
         uint64_t bkey = b.get_key();
-        uint32_t key = (uint32_t)(bkey & mask);
-
-        auto& hashentry = m_hash.get(key);
+        auto& hashentry = m_hash.get(bkey);
         if (hashentry.key != bkey) {
-            // std::cerr << "did not found entry for pv move in TT\n";
+            std::cerr << "did not found entry for pv move in TT\n";
             break;
         }
         if (!hashentry.exact_score) {
-            // std::cerr << "entry in TT is not PV-node\n";
+
+
+
+            std::cerr << "entry in TT is not PV-node\n";
             break;
         }
         bool has_hash_move = hashentry.hashmove_src != hashentry.hashmove_dst;

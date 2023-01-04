@@ -66,7 +66,7 @@ struct HashEntry {
 struct Hash
 {
 private:
-    std::unordered_map<uint32_t,HashEntry> m_entries;
+    std::unordered_map<uint64_t,HashEntry> m_entries;
 public:
     Hash(){}
 
@@ -80,13 +80,18 @@ public:
         m_entries.clear();
     }
 
-    inline HashEntry& get(uint32_t k) {
-        auto it = m_entries.find(k);
+    inline HashEntry& get(uint64_t bkey) {
+
+        //uint64_t mask = (1 << 27) - 1;
+        //uint32_t key = (uint32_t)(bkey & mask);
+        uint64_t key = bkey;
+
+        auto it = m_entries.find(key);
         if (it == m_entries.end()) {
-            auto res = m_entries.emplace(k, HashEntry{});
+            auto res = m_entries.emplace(key, HashEntry{});
             return res.first->second;
         }
-        return m_entries[k];
+        return it->second;
     }
 
     static uint64_t full_hash(const Board& b);
