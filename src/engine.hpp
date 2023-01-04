@@ -134,6 +134,7 @@ public:
     void display_timers(Timer&);
     void display_stats();
     void display_stats(int current_maxdepth);
+    void display_node_infos(Timer&);
 
     int32_t quiesce(Board& b, int color, int32_t alpha, int32_t beta, int depth);
     int32_t negamax(

@@ -640,16 +640,15 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
         uint64_t bkey = b.get_key();
         auto& hashentry = m_hash.get(bkey);
         if (hashentry.key == 0) {
-            std::cerr << "did not found entry for pv move in TT == 0\n";
+            //std::cerr << "did not found entry for pv move in TT == 0\n";
             break;
         }
         if (hashentry.key != bkey) {
-            std::cerr << "did not found entry for pv move in TT => KEY CONFLICT\n";
+            //std::cerr << "did not found entry for pv move in TT => KEY CONFLICT\n";
             break;
         }
         if (!hashentry.exact_score) {
-
-            std::cerr << "entry in TT is not PV-node\n";
+            //std::cerr << "entry in TT is not PV-node\n";
             break;
         }
         bool has_hash_move = hashentry.hashmove_src != hashentry.hashmove_dst;
@@ -666,7 +665,6 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
         b.make_move(hash_move);
         hash_move.checks = b.is_king_checked(other_color(hash_move.color));
         hash_move.mate = (hashentry.exact_score!=0) && hashentry.score == 20000 - 1;
-        std::cout<< "pv move" << move_to_string(hash_move)<<"\n";
         pv.push_back(hash_move);
         --current_depth;
         if (hash_move.mate)
@@ -674,7 +672,6 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
             break;
         }
     }
-    std::cout<< "---\n";
     for (auto i = pv.size(); i > 0; --i) {
         b.unmake_move(pv[i - 1]);
     }
@@ -713,7 +710,6 @@ bool NegamaxEngine::iterative_deepening(
             &topLevelOrdering, false, node_type, pvLine
         );
 
-        std::cerr << "\n\n\n-----------------\n";
         if (m_stop_required_by_timeout || max_time_ms > 0) {
             uint64_t total_duration = (uint64_t)(total_timer.get_micro_length() / 1000.0);
             if (total_duration > max_time_ms) {
@@ -733,14 +729,14 @@ bool NegamaxEngine::iterative_deepening(
 
         if (pvLine.size() == 0) {
             // only possibility is the position is already mated
-            std::cerr << "no move no pvline score="<<score<<"\n";
+            uci_send_info_string("no move was found! score={}", score);
             *move_found = false;
             return false;
         }
-        if (pvLine.size() < depth && !pvLine[pvLine.size()-1].mate)
-        {
-            std::cout << fmt::format("MISSING {} MOVE IN PV!!!\n", depth - pvLine.size());
-        }
+        // if (pvLine.size() < depth && !pvLine[pvLine.size()-1].mate)
+        // {
+        //     std::cout << fmt::format("MISSING {} MOVE IN PV!!!\n", depth - pvLine.size());
+        // }
         *best_move = pvLine[0];
         *move_found = true;
 
@@ -749,7 +745,7 @@ bool NegamaxEngine::iterative_deepening(
         for (const auto& m : pvLine) {
             moves_str.emplace_back(move_to_string(m));
         }
-        uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
+        // uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
 
 
         moves_str.clear();
@@ -785,26 +781,12 @@ bool NegamaxEngine::iterative_deepening(
             );
         }
 
-        this->display_stats(depth);
-        display_timers(t);
+        // this->display_stats(depth);
+        // display_timers(t);
+        // display_node_infos(t);
 
         previousPvLine = std::move(pvLine);
 
-        std::cerr << "Non-Leaf Nodes="<<m_total_nodes<<"\n";
-        std::cerr << "Leaf Nodes="<<m_total_leaf_nodes<<"\n";
-        double branch = (double)(m_total_leaf_nodes+m_total_nodes-1)/m_total_nodes;
-        std::cerr << "Avg branching factor="<<branch<<"\n";
-
-        std::cerr << "Quiescence Nodes="<<m_total_quiescence_nodes<<"\n";
-        auto total = m_total_nodes+m_total_quiescence_nodes;
-        std::cerr << "TOTAL_NODES="<<total<<"\n";
-
-        double dur = t.get_length();
-        std::cerr << "NPS (quiescence)=" << (m_total_quiescence_nodes/dur) << "\n";
-        std::cerr << "NPS (regular nodes)=" << (m_total_nodes/dur) << "\n";
-        std::cerr << "NPS (TOTAL NODES)=" << (total/dur) << "\n";
-
-        std::cerr << "\n-----------------\n\n";
     }
     return false;
 }
@@ -973,4 +955,24 @@ void NegamaxEngine::display_timers(Timer &t)
     std::cerr << "T(Q make move)=" << m_make_move2_timer.get_length() << "\n";
     std::cerr << "T(Q unmake move)" << m_unmake_move2_timer.get_length() << "\n";
     std::cerr << "---\n" << std::flush;;
+}
+
+void NegamaxEngine::display_node_infos(Timer &t)
+{
+    std::cerr << "Non-Leaf Nodes="<<m_total_nodes<<"\n";
+    std::cerr << "Leaf Nodes="<<m_total_leaf_nodes<<"\n";
+    double branch = (double)(m_total_leaf_nodes+m_total_nodes-1)/m_total_nodes;
+    std::cerr << "Avg branching factor="<<branch<<"\n";
+
+    std::cerr << "Quiescence Nodes="<<m_total_quiescence_nodes<<"\n";
+    auto total = m_total_nodes+m_total_quiescence_nodes;
+    std::cerr << "TOTAL_NODES="<<total<<"\n";
+
+    double dur = t.get_length();
+    std::cerr << "NPS (quiescence)=" << (m_total_quiescence_nodes/dur) << "\n";
+    std::cerr << "NPS (regular nodes)=" << (m_total_nodes/dur) << "\n";
+    std::cerr << "NPS (TOTAL NODES)=" << (total/dur) << "\n";
+
+    std::cerr << "\n-----------------\n\n";
+
 }
