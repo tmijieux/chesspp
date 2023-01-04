@@ -5,10 +5,50 @@
 
 #include "SDL.h"
 #include "SDL_image.h"
+#include "SDL_ttf.h"
 
 #include "./board_renderer.hpp"
 #include "./move_generation.hpp"
 #include "./engine.hpp"
+
+
+void BoardRenderer::init_text(SDL_Renderer *renderer)
+{
+    TTF_Init();
+    //this opens a font style and sets a size
+
+    std::string path_ttf = std::string("../assets/fonts/VeraMono.ttf");
+#ifdef WIN32
+    path_white = "../"+path_white;
+#endif
+
+    const char *font_file = path_ttf.c_str();
+    TTF_Font* sansFont = TTF_OpenFont(font_file, 24);
+    if (sansFont == nullptr) {
+        std::cerr<<"could not find font "<< font_file<<"\n";
+        exit(1);
+    }
+
+    // this is the color in rgb format,
+    // maxing out all would give you the color white,
+    // and it will be your text's color
+
+    // as TTF_RenderText_Solid could only be used on
+    // SDL_Surface then you have to create the surface first
+
+    const char *mytext =  "abcdefgh12345678";
+    TTF_SizeText(sansFont, mytext, &m_text_width, &m_text_height);
+
+    SDL_Color white = {0xea, 0xe9, 0xd2};
+    SDL_Surface *surfaceMessage =  TTF_RenderText_Solid(sansFont, mytext, white);
+    m_alphanum_texture = SDL_CreateTextureFromSurface(renderer, surfaceMessage);
+    SDL_FreeSurface(surfaceMessage);
+
+    SDL_Color blue = {0x4b, 0x73, 0x99};
+    surfaceMessage =  TTF_RenderText_Solid(sansFont, mytext, blue);
+    m_alphanum_black_texture = SDL_CreateTextureFromSurface(renderer, surfaceMessage);
+    SDL_FreeSurface(surfaceMessage);
+}
 
 
 void draw_circle(SDL_Renderer* renderer, int32_t centreX, int32_t centreY, int32_t radius)
@@ -57,67 +97,99 @@ void draw_circle(SDL_Renderer* renderer, int32_t centreX, int32_t centreY, int32
 //P_QUEEN = 5,
 //P_KING = 6,
 
-const char* piece_path_black[P_NUM_PIECE] = {
-    nullptr,
-    "chess-pawn-black.png",
-    "chess-bishop-black.png",
-    "chess-knight-black.png",
-    "chess-rook-black.png",
-    "chess-queen-black.png",
-    "chess-king-black.png",
-};
-const char* piece_path_white[P_NUM_PIECE] = {
-    nullptr,
-    "chess-pawn-white.png",
-    "chess-bishop-white.png",
-    "chess-knight-white.png",
-    "chess-rook-white.png",
-    "chess-queen-white.png",
-    "chess-king-white.png",
-};
+int piece_to_atlaspos(Piece p)
+{
+    switch (p) {
+    case P_PAWN: return 0;
+    case P_BISHOP: return 1;
+    case P_QUEEN: return 2;
+    case P_KING: return 3;
+    case P_KNIGHT: return 4;
+    case P_ROOK: return 5;
+    default: return 0;
+    }
+}
+
+
 
 BoardRenderer::BoardRenderer() :
     m_window(nullptr),
     m_renderer(nullptr),
-    m_piece_tex_white{ nullptr },
-    m_piece_tex_black{ nullptr },
+    m_piece_tex{ nullptr },
     m_move_event{ 0 },
     m_history_mode{ false },
     m_current_history_pos{ 0 },
-    m_need_redraw{ true }
+    m_need_redraw{ true },
+    m_flipped_board{false}
 {
-    std::fill(std::begin(m_piece_tex_white), std::end(m_piece_tex_white), nullptr);
-    std::fill(std::begin(m_piece_tex_black), std::end(m_piece_tex_black), nullptr);
-
     SDL_Init(SDL_INIT_VIDEO);
     m_window = SDL_CreateWindow("chesspp", 100, 100, 640, 640, 0);
     m_renderer = SDL_CreateRenderer(m_window, -1, SDL_RENDERER_ACCELERATED);
     IMG_Init(IMG_INIT_PNG);
 
+    std::memset(m_piece_pos, 0, sizeof(m_piece_pos));
+    for (int i = 0; i < 12; ++i) {
+        m_piece_pos[i].w = 600/6;
+        m_piece_pos[i].h = 237/2;
+
+        m_piece_pos[i].x = (i % 6) * (600/6);
+        m_piece_pos[i].y = (i / 6) * (237/2);
+
+        if (i%6 == piece_to_atlaspos(P_PAWN)) {
+            m_piece_pos[i].w -= 25;
+        } else if (i%6 == piece_to_atlaspos(P_QUEEN)) {
+            m_piece_pos[i].x -= 5;
+            m_piece_pos[i].w += 10;
+        } else if (i%6 == piece_to_atlaspos(P_KING)) {
+            m_piece_pos[i].x += 15;
+        } else if (i%6 == piece_to_atlaspos(P_BISHOP)) {
+            m_piece_pos[i].x -= 15;
+        } else if (i%6 == piece_to_atlaspos(P_KNIGHT)) {
+            m_piece_pos[i].x += 15;
+        } else if (i%6 == piece_to_atlaspos(P_ROOK)) {
+            m_piece_pos[i].x += 15;
+        }
+        if (i/6 == 0) {
+            // blackpiece
+            m_piece_pos[i].h -= 25;
+            //m_piece_pos[i].y -= 25;
+        } else {
+            m_piece_pos[i].y += 25;
+        }
+    }
+
+
+    init_text(m_renderer);
+
     // custom events
     m_move_event = SDL_RegisterEvents(1);
 
     SDL_SetHint( SDL_HINT_RENDER_SCALE_QUALITY, "2" );
-
-    for (uint8_t t = P_MIN_PIECE; t <= P_MAX_PIECE; ++t) {
+    std::string path_tex = std::string("../assets/pngs/piece-atlas.png");
 #ifdef WIN32
-        std::string path_white = std::string("../../assets/pngs/") + piece_path_white[t];
-        std::string path_black = std::string("../../assets/pngs/") + piece_path_black[t];
-#else
-        std::string path_white = std::string("../assets/pngs/") + piece_path_white[t];
-        std::string path_black = std::string("../assets/pngs/") + piece_path_black[t];
+    path_tex = "../"+path_tex;
 #endif
-        m_piece_tex_black[t] = IMG_LoadTexture(m_renderer, path_black.c_str());
-        m_piece_tex_white[t] = IMG_LoadTexture(m_renderer, path_white.c_str());
-    }
+    m_piece_tex = IMG_LoadTexture(m_renderer, path_tex.c_str());
+
+
+
 }
 
 BoardRenderer::~BoardRenderer()
 {
+    SDL_DestroyTexture(m_piece_tex);
+    m_piece_tex = nullptr;
+
+    SDL_DestroyTexture(m_alphanum_texture);
+    SDL_DestroyTexture(m_alphanum_black_texture);
+    m_alphanum_texture = nullptr;
+    m_alphanum_black_texture = nullptr;
+
     SDL_DestroyRenderer(m_renderer);
     m_renderer = nullptr;
 
     SDL_DestroyWindow(m_window);
+
     m_window = nullptr;
     SDL_Quit();
 }
@@ -133,13 +205,16 @@ void BoardRenderer::draw_squares() const
         rect.h = 80;
         rect.w = 80;
         if (row % 2 == col % 2) {
-            SDL_SetRenderDrawColor(m_renderer, 255, 255, 255, 255);
+            // #eae9d2
+            SDL_SetRenderDrawColor(m_renderer, 0xea, 0xe9, 0xd2, 0xFF);
         } else {
-            SDL_SetRenderDrawColor(m_renderer, 100, 100, 100, 255);
+            // blue
+            SDL_SetRenderDrawColor(m_renderer, 0x4B, 0x73, 0x99, 0xFF);
         }
         SDL_RenderFillRect(m_renderer, &rect);
     }
 }
+
 void BoardRenderer::draw_pieces(const Board &b) const
 {
     for (uint8_t i = 0; i < 64; ++i) {
@@ -147,31 +222,103 @@ void BoardRenderer::draw_pieces(const Board &b) const
         Piece p = b.get_piece_at(pos);
         Color clr = b.get_color_at(pos);
 
-        SDL_Rect rect;
-        rect.x = pos.column * 80 + 10;
-        rect.y = (7-pos.row) * 80 + 10;
-        rect.h = 60;
-        rect.w = 60;
-
         if (p != P_EMPTY) {
-            SDL_Texture* tex;
-            tex = (clr == C_WHITE) ? m_piece_tex_white[p] : m_piece_tex_black[p];
-            SDL_RenderCopy(m_renderer, tex, NULL, &rect);
+            if (m_flipped_board) {
+                pos.column = 7 - pos.column;
+                pos.row = 7 - pos.row;
+            }
+
+            const SDL_Rect *src = &m_piece_pos[piece_to_atlaspos(p) + 6 * clr];
+
+            SDL_Rect rect;
+            rect.x = pos.column * 80 + 10;
+            rect.y = (7-pos.row) * 80 + 10;
+            rect.h = 60;
+            rect.w = 60;
+            // if (clr == C_BLACK) {
+                rect.h -= (int) ((double)(25/(237/2))  * 60) ;
+            // }
+
+            SDL_RenderCopy(m_renderer, m_piece_tex, src, &rect);
         }
+    }
+}
+
+void BoardRenderer::draw_letters() const
+{
+    int tw = m_text_width/16;
+    int th = m_text_height;
+    int margin = 5;
+
+    for (int i = 0; i < 8; ++i) {
+        //file letters
+        int k = i;
+        if (m_flipped_board) {
+            k = 7 - k;
+        }
+
+
+        SDL_Rect rect_src;
+        rect_src.x = k * tw;
+        rect_src.y = 0;
+        rect_src.w = tw;
+        rect_src.h = th;
+
+        SDL_Rect rect_dst;
+        rect_dst.w = tw;
+        rect_dst.h = th;
+        rect_dst.x = (i+1) * 80 - margin - tw;
+        rect_dst.y = 7*80 + 80 - margin - th;
+
+        SDL_Texture *tex = k % 2 == m_flipped_board ? m_alphanum_texture : m_alphanum_black_texture;
+
+        SDL_RenderCopy(m_renderer, tex, &rect_src, &rect_dst);
+    }
+
+    for (int i = 0; i < 8; ++i) {
+        int k = i;
+        if (m_flipped_board) {
+            k = 7 - k;
+        }
+        //row numbers
+
+        SDL_Rect rect_src; //create a rect
+        rect_src.x = (8 + k) * tw;
+        rect_src.y = 0;
+        rect_src.w = tw;
+        rect_src.h = th;
+
+        SDL_Rect rect_dst;
+        rect_dst.w = tw;
+        rect_dst.h = th;
+        rect_dst.x = 10;
+        rect_dst.y = (7-i) * 80 + margin;
+
+        SDL_Texture *tex = k % 2 == m_flipped_board ? m_alphanum_texture : m_alphanum_black_texture;
+        SDL_RenderCopy(m_renderer, tex, &rect_src, &rect_dst);
+
     }
 }
 
 void BoardRenderer::draw_candidates_moves() const
 {
-    SDL_SetRenderDrawColor(m_renderer, 200, 200, 200, 255);
+    SDL_SetRenderDrawColor(m_renderer, 100, 240, 100, 0xFF);
     for (const auto& m : m_candidates_moves) {
         if (!m.legal) {
             continue;
         }
-        int x = m.dst.column * 80 + 40;
-        int y = (7 - m.dst.row) * 80 + 40;
+        Pos p = m.dst;
+        if (m_flipped_board) {
+            p.column = 7 - p.column;
+            p.row = 7 - p.row;
+        }
+        int x = p.column * 80 + 40;
+        int y = (7 - p.row) * 80 + 40;
 
+        draw_circle(m_renderer, x, y, 21);
         draw_circle(m_renderer, x, y, 20);
+        draw_circle(m_renderer, x, y, 19);
+
     }
 }
 
@@ -183,6 +330,7 @@ void BoardRenderer::draw(const Board& board) const
     draw_squares();
     draw_pieces(board);
     draw_candidates_moves();
+    draw_letters();
 
     SDL_RenderPresent(m_renderer);
 }
@@ -195,6 +343,11 @@ void BoardRenderer::prepare_player_move(Board &b, SDL_Event &e)
     }
     uint8_t col = e.button.x / 80;
     uint8_t row = 7 - (e.button.y / 80);
+    if (m_flipped_board) {
+        row = 7 - row;
+        col = 7 - col;
+    }
+
     Pos pos{ row, col };
     Color clr = b.get_color_at(pos);
     Color to_move = b.get_next_move();
@@ -221,6 +374,10 @@ void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
     }
     uint8_t col = e.button.x / 80;
     uint8_t row = 7 - (e.button.y / 80);
+    if (m_flipped_board) {
+        row = 7 - row;
+        col = 7 - col;
+    }
     Pos pos{ row, col };
 
     bool player_move_done = false;
@@ -277,7 +434,12 @@ void BoardRenderer::main_loop(Board &b)
                 quit = true;
                 break;
             }
-
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_q)
+            {
+                std::cout << "quitting UI!\n";
+                quit = true;
+                break;
+            }
             if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT)
             {
                 prepare_player_move(b, e);
@@ -286,11 +448,9 @@ void BoardRenderer::main_loop(Board &b)
             {
                 do_player_move(b, e);
             }
-            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_q)
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_f)
             {
-                std::cout << "quitting UI!\n";
-                quit = true;
-                break;
+                flip_board();
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_r)
             {

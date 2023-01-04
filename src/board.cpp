@@ -29,8 +29,8 @@ void load_test_position(Board &b, int position)
 
 void Board::load_initial_position()
 {
-    load_position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-    //load_position("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+    //load_position("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    load_position("8/7R/2p1k3/p3P2P/1p6/1P1r4/1KP4r/8 b - - 0 1");
 }
 
 Piece Board::get_piece_at(const Pos& pos) const {

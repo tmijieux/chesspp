@@ -17,6 +17,7 @@ if (WITH_SDL AND WIN32)
 elseif(WITH_SDL)
   find_package(SDL2 REQUIRED)
   find_package(SDL2_IMAGE REQUIRED)
+  find_package(SDL2_TTF REQUIRED)
 endif()
 
 add_subdirectory(fmt EXCLUDE_FROM_ALL)

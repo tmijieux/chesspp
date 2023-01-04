@@ -39,6 +39,7 @@ if (WITH_SDL)
     PUBLIC
     SDL2::SDL2
     SDL2_image::SDL2_image
+    SDL2_ttf::SDL2_ttf
   )
 endif(WITH_SDL)
 
