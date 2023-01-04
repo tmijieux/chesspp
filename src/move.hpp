@@ -13,7 +13,7 @@ struct Move
 {
 public:
     int32_t evaluation;
-    int32_t killer_freq;
+    uint64_t killer_freq;
     int32_t see_value;
 
     Pos src;
@@ -43,6 +43,7 @@ public:
 
     Move():
         evaluation{-999999},
+        killer_freq{0},
         see_value{0},
         killer{false},
         hash_move{false},

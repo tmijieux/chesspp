@@ -176,6 +176,7 @@ int32_t NegamaxEngine::negamax(
                 //std::cout << "hash hit!\n";
                 stats.num_hash_hits++;
 
+
                 if (hashentry.score >= beta) {
                     return hashentry.score;
                     //return beta;
@@ -185,6 +186,16 @@ int32_t NegamaxEngine::negamax(
                     return hashentry.score;
                 }
                 else {
+
+                    if (has_hash_move) {
+                        currentPvLine.clear();
+                        extract_pv_from_tt(b, currentPvLine, hashentry.depth);
+                        parentPvLine = currentPvLine;
+                        // if (currentPvLine.size() > 0){
+                        //     currentPvLine.erase(currentPvLine.begin());
+                        // }
+                        // extract_pv(hash_move, currentPvLine, parentPvLine);
+                    }
                     return hashentry.score;
                 }
             }
@@ -225,10 +236,6 @@ int32_t NegamaxEngine::negamax(
         SmartTime st{ m_quiescence_timer };
         int32_t nodeval = quiesce(b, color, alpha, beta, ply);
         return nodeval;
-    }
-    if (remaining_depth)
-    {
-        std::cout << "check extension!\n";
     }
 
 
@@ -280,16 +287,17 @@ int32_t NegamaxEngine::negamax(
     {
         if (topLevelOrdering !=  nullptr && topLevelOrdering->size() > 0) {
             moveList = *topLevelOrdering;
-        } else {
+        }
+        else {
             {
                 SmartTime st{ m_move_generation_timer };
                 moveList = enumerate_moves(b);
             }
-            {
-                SmartTime st{ m_move_ordering_timer };
-                reorder_moves(b, moveList, ply, remaining_depth,
-                              m_killers, has_hash_move, hash_move);
-            }
+        }
+        {
+            SmartTime st{ m_move_ordering_timer };
+            reorder_moves(b, moveList, ply, remaining_depth,
+                          m_killers, has_hash_move, hash_move);
         }
 
         for (auto &move : moveList) {
@@ -365,6 +373,8 @@ int32_t NegamaxEngine::negamax(
                 );
                 move.mate = (!!move.checks) && children == NO_MOVE;
             }
+            move.evaluation = val;
+
             {
                 SmartTime st{ m_unmake_move_timer };
                 b.unmake_move(move);
@@ -390,6 +400,9 @@ int32_t NegamaxEngine::negamax(
                     move.killer = true;
                     move.mate_killer = val >= 20000 - (max_depth+1);
                     bool already_in = false;
+                    if (m_killers.size() < ply+1) {
+                        m_killers.resize(ply+1);
+                    }
                     auto &killers = m_killers[ply];
                     //replace killer
                     for (auto &m : killers) {
@@ -408,7 +421,7 @@ int32_t NegamaxEngine::negamax(
                             [](const auto&a, const auto&b) {
                                 return a.killer_freq > b.killer_freq;
                             });
-                        while (killers.size() > 3) {
+                        while (killers.size() > 10) {
                             // pop back
                             killers.erase(killers.end()-1);
                         }
@@ -416,7 +429,6 @@ int32_t NegamaxEngine::negamax(
                 }
                 break;
             }
-            move.evaluation = val;
             if (val > alpha) {
                 alpha = val; // pv-node
                 raise_alpha = true;
@@ -607,7 +619,7 @@ void NegamaxEngine::stop()
 void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
 {
     // extract PV  from TT
-    std::cout << "extract PV from TT\n" << std::flush;
+    // std::cout << "extract PV from TT\n" << std::flush;
 
     pv.reserve(depth);
     auto current_depth = depth;
@@ -619,16 +631,16 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
 
         auto& hashentry = m_hash.get(key);
         if (hashentry.key != bkey) {
-            std::cerr << "did not found entry for pv move in TT\n";
+            // std::cerr << "did not found entry for pv move in TT\n";
             break;
         }
         if (!hashentry.exact_score) {
-            std::cerr << "entry in TT is not PV-node\n";
+            // std::cerr << "entry in TT is not PV-node\n";
             break;
         }
         bool has_hash_move = hashentry.hashmove_src != hashentry.hashmove_dst;
         if (!has_hash_move) {
-            std::cerr << "no hashmove in TT for PV-node\n";
+            // std::cerr << "no hashmove in TT for PV-node\n";
             break;
         }
         Move hash_move = generate_move_for_squares(
@@ -713,6 +725,8 @@ bool NegamaxEngine::iterative_deepening(
         {
             std::cout << fmt::format("MISSING {} MOVE IN PV!!!\n", depth - pvLine.size());
         }
+        *best_move = pvLine[0];
+        *move_found = true;
 
         std::vector<std::string> moves_str;
         moves_str.reserve(pvLine.size());
@@ -721,44 +735,39 @@ bool NegamaxEngine::iterative_deepening(
         }
         uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
 
-        if (depth >= 0) {
 
-            moves_str.clear();
-            moves_str.reserve(pvLine.size());
-            for (const auto& m : pvLine) {
-                moves_str.emplace_back(move_to_uci_string(m));
-            }
-            uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
-            double duration = std::max(t.get_length(), 0.001); // cap at 1ms
-            uint64_t nps = (uint64_t)(total_nodes / duration);
-            uint64_t time = (uint64_t)(t.get_micro_length() / 1000);
+        moves_str.clear();
+        moves_str.reserve(pvLine.size());
+        for (const auto& m : pvLine) {
+            moves_str.emplace_back(move_to_uci_string(m));
+        }
+        uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
+        double duration = std::max(t.get_length(), 0.001); // cap at 1ms
+        uint64_t nps = (uint64_t)(total_nodes / duration);
+        uint64_t time = (uint64_t)(t.get_micro_length() / 1000);
 
-            int32_t mate = 0;
-            if (score <= -20000+2*depth+1 || score >= 20000-2*depth-1) {
-                // need to divide by 2 to have number of move from number of plies
-                if (score < 0) {
-                    mate = - 20000 - score;
-                    mate = (mate-1) / 2;
-                } else {
-                    mate = 20000 - score;
-                    mate = (mate+1) / 2;
-                }
-            }
-            if (mate != 0) {
-                uci_send(
-                    "info depth {} score mate {} nodes {} nps {} pv {} time {}\n",
-                    depth, mate, total_nodes, nps, fmt::join(moves_str, " "), time
-                );
+        int32_t mate = 0;
+        if (score <= -20000+2*depth+1 || score >= 20000-2*depth-1) {
+            // need to divide by 2 to have number of move from number of plies
+            if (score < 0) {
+                mate = - 20000 - score;
+                mate = (mate-1) / 2;
             } else {
-                uci_send(
-                    "info depth {} score cp {} nodes {} nps {} pv {} time {}\n",
-                    depth, score, total_nodes, nps, fmt::join(moves_str, " "), time
-                );
+                mate = 20000 - score;
+                mate = (mate+1) / 2;
             }
         }
-
-        *best_move = pvLine[0];
-        *move_found = true;
+        if (mate != 0) {
+            uci_send(
+                "info depth {} score mate {} nodes {} nps {} pv {} time {}\n",
+                depth, mate, total_nodes, nps, fmt::join(moves_str, " "), time
+            );
+        } else {
+            uci_send(
+                "info depth {} score cp {} nodes {} nps {} pv {} time {}\n",
+                depth, score, total_nodes, nps, fmt::join(moves_str, " "), time
+            );
+        }
 
         this->display_stats(depth);
         display_timers(t);
