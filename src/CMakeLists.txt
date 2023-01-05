@@ -53,5 +53,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND WITH_SDL)
     copy_if_different
     $<TARGET_FILE:SDL2::SDL2>
     $<TARGET_FILE:SDL2_image::SDL2_image>
+    $<TARGET_FILE:SDL2_ttf::SDL2_ttf>
     $<TARGET_FILE_DIR:tistouchess>)
 endif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND WITH_SDL)

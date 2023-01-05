@@ -19,7 +19,7 @@ void BoardRenderer::init_text(SDL_Renderer *renderer)
 
     std::string path_ttf = std::string("../assets/fonts/VeraMono.ttf");
 #ifdef WIN32
-    path_white = "../"+path_white;
+    path_ttf = "../"+ path_ttf;
 #endif
 
     const char *font_file = path_ttf.c_str();
@@ -100,13 +100,13 @@ void draw_circle(SDL_Renderer* renderer, int32_t centreX, int32_t centreY, int32
 int piece_to_atlaspos(Piece p)
 {
     switch (p) {
-    case P_PAWN: return 0;
+    case P_PAWN:   return 0;
     case P_BISHOP: return 1;
-    case P_QUEEN: return 2;
-    case P_KING: return 3;
+    case P_QUEEN:  return 2;
+    case P_KING:   return 3;
     case P_KNIGHT: return 4;
-    case P_ROOK: return 5;
-    default: return 0;
+    case P_ROOK:   return 5;
+    default:       return 0;
     }
 }
 
