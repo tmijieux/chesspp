@@ -398,7 +398,7 @@ int try_handle_one_command(
     }
     else if (cmd == "ucinewgame")
     {
-
+        engine.clear_hash();
     }
     else if (cmd == "position" || cmd == "pos")
     {

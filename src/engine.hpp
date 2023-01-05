@@ -85,9 +85,11 @@ private:
     Timer m_unmake_move2_timer;
     Timer m_move_generation2_timer;
 
-    uint64_t m_total_nodes;
-    uint64_t m_total_leaf_nodes;
-    uint64_t m_total_quiescence_nodes;
+    uint64_t m_total_nodes_prev;
+    uint64_t m_total_nodes_prev_prev;
+    uint64_t m_regular_nodes;
+    uint64_t m_leaf_nodes;
+    uint64_t m_quiescence_nodes;
 
     uint64_t m_run_id;
     bool m_uci_mode;
@@ -108,9 +110,11 @@ public:
     NegamaxEngine():
         m_max_depth{ 0 },
         m_current_max_depth{ 0 },
-        m_total_nodes{ 0 },
-        m_total_leaf_nodes{ 0 },
-        m_total_quiescence_nodes{ 0 },
+        m_total_nodes_prev{ 0 },
+        m_total_nodes_prev_prev{ 0 },
+        m_regular_nodes{ 0 },
+        m_leaf_nodes{ 0 },
+        m_quiescence_nodes{ 0 },
         m_run_id{ 0 },
         m_uci_mode{ false },
         m_stop_required{ false },

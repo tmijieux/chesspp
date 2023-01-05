@@ -42,7 +42,7 @@ int32_t NegamaxEngine::quiesce(
         //return alpha;
     }
 
-    m_total_quiescence_nodes += 1;
+    m_quiescence_nodes += 1;
     if (standing_pat >= beta) {
         return standing_pat;
         //return beta;
@@ -239,7 +239,7 @@ int32_t NegamaxEngine::negamax(
         // TODO ... && !b.is_king_checked(clr)
         // we do not want to go into quiescence if is in check
         stats.num_leaf_nodes += 1;
-        m_total_leaf_nodes += 1;
+        m_leaf_nodes += 1;
         SmartTime st{ m_quiescence_timer };
         int32_t nodeval = quiesce(b, color, alpha, beta, ply);
         return nodeval;
@@ -250,7 +250,7 @@ int32_t NegamaxEngine::negamax(
     // }
 
 
-    m_total_nodes += 1;
+    m_regular_nodes += 1;
 
     uint32_t num_legal_move = 0;
     bool cutoff = false;
@@ -537,14 +537,14 @@ int32_t NegamaxEngine::negamax(
         *topLevelOrdering = moveList;
         // full sort for next level of iterative deepening
 
-        if (!internal) {
-            for (auto &m : moveList) {
-                if (!m.legal) {
-                    continue;
-                }
-                std::cout << move_to_string(m) << " "<< m.evaluation<< " \n";
-            }
-        }
+        // if (!internal) {
+        //     for (auto &m : moveList) {
+        //         if (!m.legal) {
+        //             continue;
+        //         }
+        //         std::cout << move_to_string(m) << " "<< m.evaluation<< " \n";
+        //     }
+        // }
     }
     return nodeval;
 }
@@ -691,15 +691,17 @@ bool NegamaxEngine::iterative_deepening(
     Timer total_timer;
     total_timer.start();
     MoveList previousPvLine;
+    m_total_nodes_prev = 0;
+    m_total_nodes_prev_prev = 0;
 
     for (int depth = 1; depth <= max_depth; ++depth) {
         Timer t;
         t.start();
 
         reset_timers();
-        m_total_nodes = 0;
-        m_total_leaf_nodes = 0;
-        m_total_quiescence_nodes = 0;
+        m_regular_nodes = 0;
+        m_leaf_nodes = 0;
+        m_quiescence_nodes = 0;
         NodeType node_type = NodeType::UNDEFINED;
         MoveList pvLine;
 
@@ -753,7 +755,7 @@ bool NegamaxEngine::iterative_deepening(
         for (const auto& m : pvLine) {
             moves_str.emplace_back(move_to_uci_string(m));
         }
-        uint64_t total_nodes = m_total_nodes + m_total_quiescence_nodes;
+        uint64_t total_nodes = m_regular_nodes + m_quiescence_nodes;
         double duration = std::max(t.get_length(), 0.001); // cap at 1ms
         uint64_t nps = (uint64_t)(total_nodes / duration);
         uint64_t time = (uint64_t)(t.get_micro_length() / 1000);
@@ -781,9 +783,9 @@ bool NegamaxEngine::iterative_deepening(
             );
         }
 
-        // this->display_stats(depth);
+        // display_stats(depth);
         // display_timers(t);
-        // display_node_infos(t);
+        display_node_infos(t);
 
         previousPvLine = std::move(pvLine);
 
@@ -915,7 +917,6 @@ void NegamaxEngine::display_stats(int current_maxdepth)
             << "\n   ASPIRATION TOTAL=" << stats.num_aspiration_tries
             << " failure=" << stats.num_aspiration_failures
             << " success=" << stats.num_aspiration_tries-stats.num_aspiration_failures
-
             << "\n\n";
 
     }
@@ -959,19 +960,30 @@ void NegamaxEngine::display_timers(Timer &t)
 
 void NegamaxEngine::display_node_infos(Timer &t)
 {
-    std::cerr << "Non-Leaf Nodes="<<m_total_nodes<<"\n";
-    std::cerr << "Leaf Nodes="<<m_total_leaf_nodes<<"\n";
-    double branch = (double)(m_total_leaf_nodes+m_total_nodes-1)/m_total_nodes;
-    std::cerr << "Avg branching factor="<<branch<<"\n";
+    std::cerr << "Leaf Nodes="<<m_leaf_nodes<<"\n";
+    std::cerr << "Regular Nodes="<<m_regular_nodes<<"\n";
+    std::cerr << "Quiescence Nodes="<<m_quiescence_nodes<<"\n";
 
-    std::cerr << "Quiescence Nodes="<<m_total_quiescence_nodes<<"\n";
-    auto total = m_total_nodes+m_total_quiescence_nodes;
+    auto total = m_regular_nodes + m_quiescence_nodes;
     std::cerr << "TOTAL_NODES="<<total<<"\n";
-
     double dur = t.get_length();
-    std::cerr << "NPS (quiescence)=" << (m_total_quiescence_nodes/dur) << "\n";
-    std::cerr << "NPS (regular nodes)=" << (m_total_nodes/dur) << "\n";
     std::cerr << "NPS (TOTAL NODES)=" << (total/dur) << "\n";
+
+    double br_fac_1 = (double)(m_leaf_nodes+m_regular_nodes-1)/m_regular_nodes;
+    double br_fac_2 = (double)(m_quiescence_nodes+m_regular_nodes-1)/m_regular_nodes;
+    std::cerr << "AVG Branching Factor((LEAF+REGULAR)/REGULAR)="<<br_fac_1<<"\n";
+    std::cerr << "AVG Branching Factor((QUIESCENCE+REGULAR)/REGULAR)="<<br_fac_2<<"\n";
+
+    if (m_total_nodes_prev != 0) {
+        double ebf_n_1 = (double)total/m_total_nodes_prev;
+        std::cerr << "EBF(N/N-1) = " << ebf_n_1 << "\n";
+    }
+    if (m_total_nodes_prev_prev != 0) {
+        double ebf_n_2 = (double)total/m_total_nodes_prev_prev;
+        std::cerr << "sqrt(EBF(N/N-2)) = " << std::sqrt(ebf_n_2) << "\n";
+    }
+    m_total_nodes_prev_prev = m_total_nodes_prev;
+    m_total_nodes_prev = total;
 
     std::cerr << "\n-----------------\n\n";
 
