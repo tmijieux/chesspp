@@ -27,26 +27,38 @@ void extract_pv(const Move& m, const MoveList& currentPvLine, MoveList& parentPv
 int32_t NegamaxEngine::quiesce(
     Board& b, int color, int32_t alpha, int32_t beta, int ply)
 {
+    Color clr = b.get_next_move();
+
+    bool move_while_checked = b.is_king_checked(clr);
+
     int32_t standing_pat = 0;
     {
         SmartTime st{ m_evaluation_timer };
-        standing_pat = color * evaluate_board(b);
-        //m_evaluation[pos_string] = standing_pat;
+        //   standing_pat = color * evaluate_material_only(b);
+        standing_pat = color * evaluate_position(b);
     }
     if (m_stop_required) {
         return std::max(standing_pat, beta); // fail-high immediately
         // return beta
     }
-    if (standing_pat + 4000 < alpha) {
+    if (standing_pat + 2000 < alpha) {
         return standing_pat;
         //return alpha;
     }
 
     m_quiescence_nodes += 1;
-    if (standing_pat >= beta) {
+    if (standing_pat - 250 >= beta) {
         return standing_pat;
         //return beta;
     }
+
+    // MoveList moveList;
+    // standing_pat += evaluate_position_only(b, moveList);
+
+    if (standing_pat >= beta) {
+        return standing_pat;
+    }
+
     if (standing_pat > alpha) {
         alpha = standing_pat;
     }
@@ -62,6 +74,7 @@ int32_t NegamaxEngine::quiesce(
         reorder_mvv_lva(b, moveList, 0, moveList.size());
     }
 
+    int32_t num_legal_move = 0;
     int32_t nodeval = standing_pat;
     for (auto& move : moveList) {
         {
@@ -78,9 +91,15 @@ int32_t NegamaxEngine::quiesce(
             move.legal = false;
             continue;
         }
-
+        ++num_legal_move;
         move.legal_checked = true;
         move.legal = true;
+
+        if (!move.takes) {
+            b.unmake_move(move);
+            continue;
+        }
+
 
         int32_t BIG_DELTA = 975;
         if (move.promote) {
@@ -112,6 +131,14 @@ int32_t NegamaxEngine::quiesce(
             alpha = val;
         }
     }
+    // if (num_legal_move == 0) {
+
+    //     if (b.is_king_checked(clr)) {
+    //         return -20000 + ply;
+    //     } else {
+    //         return 0;
+    //     }
+    // }
     return nodeval;
 }
 
@@ -173,6 +200,7 @@ int32_t NegamaxEngine::negamax(
                 hashentry.hashmove_dst,
                 hashentry.promote_piece
             );
+            hash_move.evaluation = hashentry.score;
         }
 
         if (hashentry.depth >= remaining_depth) {
@@ -474,7 +502,7 @@ int32_t NegamaxEngine::negamax(
         || (!hashentry.exact_score && !cutoff && raise_alpha);
     // if depth is lower but we have an pv-node
     // while the previous was not a pv-node then replace!
-    //replace = !null_window && replace;
+    replace = !null_window && replace;
     if (replace) {
         hashentry.score = nodeval;
         hashentry.depth = remaining_depth;
@@ -663,8 +691,10 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
             hashentry.promote_piece
         );
         b.make_move(hash_move);
+        hash_move.evaluation = hashentry.score;
         hash_move.checks = b.is_king_checked(other_color(hash_move.color));
         hash_move.mate = (hashentry.exact_score!=0) && hashentry.score == 20000 - 1;
+
         pv.push_back(hash_move);
         --current_depth;
         if (hash_move.mate)
@@ -745,9 +775,9 @@ bool NegamaxEngine::iterative_deepening(
         std::vector<std::string> moves_str;
         moves_str.reserve(pvLine.size());
         for (const auto& m : pvLine) {
-            moves_str.emplace_back(move_to_string(m));
+            moves_str.emplace_back(move_to_string(m)+"("+std::to_string(m.evaluation)+")");
         }
-        // uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
+        uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
 
 
         moves_str.clear();
@@ -783,8 +813,8 @@ bool NegamaxEngine::iterative_deepening(
             );
         }
 
-        // display_stats(depth);
-        // display_timers(t);
+        display_stats(depth);
+        display_timers(t);
         display_node_infos(t);
 
         previousPvLine = std::move(pvLine);
@@ -886,7 +916,7 @@ void NegamaxEngine::display_stats()
 
 void NegamaxEngine::display_stats(int current_maxdepth)
 {
-    std::cerr << "cutoffs for current_maxdepth=" << current_maxdepth << "\n";
+    std::cerr << "STATS for current_maxdepth=" << current_maxdepth << "\n";
     for (auto& [depth, stats] : m_stats[current_maxdepth]) {
 
         double percent_maked = (double)stats.num_move_maked / std::max(stats.num_move_generated, 1u);

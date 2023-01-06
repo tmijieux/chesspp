@@ -25,11 +25,11 @@ public:
     Piece promote_piece;
 
     unsigned en_passant : 1;
-    unsigned killer:1;
-    unsigned mate_killer:1;
-    unsigned hash_move:1;
-    unsigned takes:1;
-    unsigned castling:1;
+    unsigned killer : 1;
+    unsigned mate_killer : 1;
+    unsigned hash_move : 1;
+    unsigned takes : 1;
+    unsigned castling : 1;
     unsigned legal : 1;
     unsigned legal_checked : 1;
     unsigned promote : 1;
@@ -89,7 +89,6 @@ public:
         m.taken_piece = piece;
         m.piece = taken_piece;
         m.color = other_color(color);
-
 
         m.castling = castling;
 

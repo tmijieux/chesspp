@@ -2,6 +2,8 @@
 #define CHESS_EVALUATION_H
 
 #include "./board.hpp"
+#include "./move_generation.hpp"
+
 
 constexpr inline int32_t piece_value(Piece p)
 {
@@ -16,6 +18,8 @@ constexpr inline int32_t piece_value(Piece p)
     }
 }
 
-int32_t evaluate_board(const Board &b);
+int32_t evaluate_position(const Board &b);
+int32_t evaluate_material_only(const Board& b);
+int32_t evaluate_position_only(const Board& b, MoveList &out);
 
 #endif // CHESS_EVALUATION_H

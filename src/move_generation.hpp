@@ -8,6 +8,7 @@ class Board;
 #include "./move.hpp"
 
 MoveList enumerate_moves(const Board& b, bool only_takes=false);
+MoveList enumerate_moves(const Board& b, bool only_takes, Color to_move);
 MoveList enumerate_attacks(const Board& b, Color to_move);
 
 /**

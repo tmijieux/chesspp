@@ -433,7 +433,7 @@ int try_handle_one_command(
     }
     else if (cmd == "e" || cmd == "eval" || cmd == "evaluate")
     {
-        int32_t val = evaluate_board(b);
+        int32_t val = evaluate_position(b);
         std::cout << "Evaluation=" << val <<"\n";
     }
     else if (cmd == "perft")

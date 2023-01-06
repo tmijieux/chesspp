@@ -471,7 +471,7 @@ void BoardRenderer::main_loop(Board &b)
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_e)
             {
-                std::cout << "Evaluation: " << evaluate_board(b) << "\n";
+                std::cout << "Evaluation: " << evaluate_position(b) << "\n";
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_p)
             {

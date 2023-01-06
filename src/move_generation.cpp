@@ -417,10 +417,8 @@ void add_move_from_position(
     }
 }
 
-MoveList enumerate_moves(const Board& b, bool only_takes)
+MoveList enumerate_moves(const Board& b, bool only_takes, Color to_move)
 {
-    Color to_move = b.get_next_move();
-
     MoveList moveList;
     for (uint8_t i = 0; i < 64; ++i) {
         Pos pos{ i };
@@ -431,6 +429,12 @@ MoveList enumerate_moves(const Board& b, bool only_takes)
         add_move_from_position(b, pos, moveList, only_takes, false);
     }
     return moveList;
+}
+
+MoveList enumerate_moves(const Board& b, bool only_takes)
+{
+    Color to_move = b.get_next_move();
+    return enumerate_moves(b, only_takes, to_move);
 }
 
 Move generate_move_for_squares(

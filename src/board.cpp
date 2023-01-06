@@ -23,6 +23,7 @@ void load_test_position(Board &b, int position)
     case 4: b.load_position("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"); break;
     case 5: b.load_position("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"); break;
     case 6: b.load_position("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"); break;
+    case 7: b.load_position("8/7R/2p1k3/p3P2P/1p6/1P1r4/1KP4r/8 b - - 0 1"); break;
     }
 
 }
