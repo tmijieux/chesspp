@@ -17,21 +17,21 @@ namespace pgn
 
 
 enum TokenType {
-    T_STRING,
-    T_OPENING_BRACKET,
-    T_CLOSING_BRACKET,
-    T_OPENING_PAREN,
-    T_CLOSING_PAREN,
-    T_OPENING_ANGLE_BRACKET,
-    T_CLOSING_ANGLE_BRACKET,
-    T_STAR,
-    T_PERIOD,
-    T_COMMENT,
-    T_INLINE_COMMENT,
-    T_EXTENSION,
-    T_NAG, //numeric annotation glyph
-    T_INTEGER,
-    T_SYMBOL,
+    T_STRING = 1,
+    T_OPENING_BRACKET = 2,
+    T_CLOSING_BRACKET = 3,
+    T_OPENING_PAREN = 4,
+    T_CLOSING_PAREN = 5,
+    T_OPENING_ANGLE_BRACKET = 6,
+    T_CLOSING_ANGLE_BRACKET = 7,
+    T_STAR = 8,
+    T_PERIOD = 9,
+    T_COMMENT = 10,
+    T_INLINE_COMMENT = 11,
+    T_EXTENSION = 12,
+    T_NAG = 13, //numeric annotation glyph
+    T_INTEGER = 14,
+    T_SYMBOL = 15,
 };
 
 struct Token {
@@ -230,12 +230,11 @@ std::string read_comment(char first, std::istream& s)
     else if (first == '{') {
         last = '}';
     }
-
     else {
         throw chess_exception("invalid comment start");
     }
 
-    std::string res;
+    std::string res = "";
     int i = 0;
 
     auto len = s.rdbuf()->in_avail();
@@ -246,14 +245,11 @@ std::string read_comment(char first, std::istream& s)
         if (i > len) {
             break;
         }
+        c = s.get();
     }
     if (last == '}' && c != last) {
         throw chess_exception(fmt::format("invalid unterminated comment {}", res));
     }
-    if (last == '}') {
-        ++i;
-    }
-
     return res;
 }
 
@@ -269,12 +265,39 @@ std::string read_escape_extension(std::istream& s)
 
 std::string read_symbol_token(std::istream& s)
 {
-    return "";
+    int pos = 0;
+    std::string output = "";
+    size_t len = s.rdbuf()->in_avail();
+
+    const char glyph[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_+#=:-";
+    while (true) 
+    {
+        char c = s.get();
+        if ((c >= 'a' && c <= 'z')
+            || (c >= 'A' && c <= 'Z')
+            || (c >= '0' && c <= '9')
+            || c == '_' || c == '+' 
+            || c=='#' || c == '='
+            || c == ':' || c == '-') 
+        {
+            output += c;
+            pos++;
+            if (pos > len) {
+                break;
+            }
+        }
+        else {
+            s.putback(c);
+            break;
+
+        }
+    }
+    return output;
 }
 
 bool is_all_numeric(const std::string &s)
 {
-    for(char c : s) {
+    for (const char &c : s) {
         if (!std::isdigit(c)) {
             return false;
         }
@@ -288,7 +311,6 @@ TokenVec tokenize(const std::string &body)
     bool beginning_of_line = true;
     int line_count = 0;
     int column_count = 0;
-
 
     std::istringstream ss{body};
     while (ss.rdbuf()->in_avail() > 0) {
@@ -331,8 +353,11 @@ TokenVec tokenize(const std::string &body)
         } else if ((c >= '0' && c <= '9')
                    || (c >= 'A' && c <= 'Z')
                    || (c >= 'a' && c <= 'z')) {
+            ss.putback(c);
             auto symbol = read_symbol_token(ss);
             if (is_all_numeric(symbol)) {
+
+
                 tokens.emplace_back(T_INTEGER, symbol);
             } else {
                 tokens.emplace_back(T_SYMBOL, symbol);
@@ -370,46 +395,46 @@ void load_pgn_file(const std::string &body, Board &b, MoveList &moves)
     for (::pgn::Token &token : tokens)
     {
         if (token.type == T_OPENING_BRACKET) {
-            in_tag_pair = true;
+           in_tag_pair = true;
         } else if (in_tag_pair && token.type == T_CLOSING_BRACKET) {
-            in_tag_pair = false;
+           in_tag_pair = false;
         } else if (in_tag_pair) {
-            if (token.type == T_SYMBOL) {
-                current_symbol = token.value;
-            } else if (token.type == T_STRING) {
-                if (current_symbol == "Black") {
-                    std::cout << "black player is "<<token.value<<"\n";
-                } else if (current_symbol == "White") {
-                    std::cout << "white player is "<<token.value<<"\n";
-                }
-            }
+           if (token.type == T_SYMBOL) {
+               current_symbol = token.value;
+           } else if (token.type == T_STRING) {
+               if (current_symbol == "Black") {
+                   std::cout << "black player is "<<token.value<<"\n";
+               } else if (current_symbol == "White") {
+                   std::cout << "white player is "<<token.value<<"\n";
+               }
+           }
         } else if (!in_tag_pair) {
-            if (token.type != T_PERIOD) {
-                next_is_black = seen_period_count == 3;
-                seen_period_count = 0;
-            }
-            if (token.type == T_PERIOD) {
-                ++seen_period_count;
-            } else if (token.type == T_INTEGER) {
-                current_move_number = token.value;
-            } else if (token.type == T_STAR) {
-                std::cout<< " result = *\n";
-                // update_board_information()
-            } else if (token.type == T_SYMBOL) {
-                if (token.value == "1-0"
-                    || token.value == "0-1"
-                    || token.value == "1/2-1/2")
-                {
-                    std::cout<< fmt::format(" result = {}\n", token.value);
-                    break;
-                }
-                Color clr = next_is_black ? C_BLACK : C_WHITE;
-                Move move = compute_move_from_san(token.value, clr, b);
-                b.make_move(move);
-                moves.push_back(move);
+           if (token.type != T_PERIOD) {
+               next_is_black = seen_period_count == 3;
+               seen_period_count = 0;
+           }
+           if (token.type == T_PERIOD) {
+               ++seen_period_count;
+           } else if (token.type == T_INTEGER) {
+               current_move_number = token.value;
+           } else if (token.type == T_STAR) {
+               std::cout<< " result = *\n";
+               // update_board_information()
+           } else if (token.type == T_SYMBOL) {
+               if (token.value == "1-0"
+                   || token.value == "0-1"
+                   || token.value == "1/2-1/2")
+               {
+                   std::cout<< fmt::format(" result = {}\n", token.value);
+                   break;
+               }
+               Color clr = next_is_black ? C_BLACK : C_WHITE;
+               Move move = compute_move_from_san(token.value, clr, b);
+               b.make_move(move);
+               moves.push_back(move);
 
-                next_is_black = !next_is_black;
-            }
+               next_is_black = !next_is_black;
+           }
         }
     }
 }

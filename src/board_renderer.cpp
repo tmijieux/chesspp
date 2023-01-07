@@ -1,7 +1,7 @@
-#ifdef CHESS_ENABLE_SDL
-
 #include <iostream>
+#include <fstream>
 #include <filesystem>
+#include <sstream>
 
 #include "SDL.h"
 #include "SDL_image.h"
@@ -10,6 +10,8 @@
 #include "./board_renderer.hpp"
 #include "./move_generation.hpp"
 #include "./engine.hpp"
+#include "./dialog.hpp"
+#include "./pgn.hpp"
 
 
 void BoardRenderer::init_text(SDL_Renderer *renderer)
@@ -485,7 +487,7 @@ void BoardRenderer::main_loop(Board &b)
                     m_current_history_pos = m_history.size() - 2;
                 }
                 else if (m_history_mode && m_current_history_pos >= 1) {
-                    m_current_history_pos = std::max(m_current_history_pos - 1ul, (uint64_t)0);
+                    m_current_history_pos = std::max(m_current_history_pos - 1, (uint64_t)0);
                 }
                 draw(m_history[m_current_history_pos]);
             }
@@ -498,6 +500,35 @@ void BoardRenderer::main_loop(Board &b)
                         m_history_mode = false;
                     }
                     draw(m_history[m_current_history_pos]);
+                }
+            }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_o)
+            {
+                std::string file_path;
+                if (find_file_path_dialog(file_path))
+                {
+                    std::cout << "file_path = " << file_path << "\n";
+                    std::ifstream file{ file_path};
+                    std::stringstream buf;
+                    buf << file.rdbuf();
+                    std::string content = buf.str();
+                    MoveList move_history;
+
+                    try
+                    {
+                        pgn::load_pgn_file(content, b, move_history);
+
+                    }
+                    catch (chess_exception& e)
+                    {
+                        std::cout << "error while loading pgn file=" << e.what() << "\n";
+                    }
+
+                    for (auto& m : move_history)
+                    {
+                        std::cout << "move=" << move_to_string(m) << "\n";
+                    }
+
                 }
             }
             else if (e.type == SDL_KEYDOWN)
@@ -536,4 +567,4 @@ void BoardRenderer::main_loop(Board &b)
 }
 
 
-#endif // CHESS_ENABLE_SDL
+

@@ -26,6 +26,8 @@ set(tistouchess_src
   transposition_table.cpp
   pgn.hpp
   pgn.cpp
+  dialog.cpp
+  dialog.hpp
 )
 
 #add_executable(chess WIN32 ${tistouchess_src})
