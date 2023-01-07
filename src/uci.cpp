@@ -104,21 +104,6 @@ void send_readyok()
     uci_send("readyok\n");
 }
 
-
-inline constexpr char get_char_by_piece(Piece p)
-{
-    switch (p) {
-    case P_PAWN: return 'p';
-    case P_ROOK: return 'r';
-    case P_BISHOP: return 'b';
-    case P_KNIGHT: return 'n';
-    case P_QUEEN: return 'q';
-    case P_KING: return 'k';
-    case P_EMPTY: return ' ';
-    default: return 'X';
-    }
-}
-
 void console_draw(const Board& board)
 {
     std::cout << "\n\n";

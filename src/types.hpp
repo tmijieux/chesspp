@@ -1,6 +1,8 @@
 #ifndef CHESS_TYPES_H
 #define CHESS_TYPES_H
 
+#include <cstdint>
+
 
 class chess_exception : public std::exception {
 private:

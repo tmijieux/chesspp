@@ -8,46 +8,7 @@
 #include "./board.hpp"
 #include "./move_generation.hpp"
 
-Piece get_piece_by_char(char c)
-{
-    switch (c) {
-    case 'p':
-    case 'P':
-        return P_PAWN;
-    case 'r':
-    case 'R':
-        return P_ROOK;
-    case 'b':
-    case 'B':
-        return P_BISHOP;
-    case 'n':
-    case 'N':
-        return P_KNIGHT;
-    case 'q':
-    case 'Q':
-        return P_QUEEN;
-    case 'k':
-    case 'K':
-        return P_KING;
-    default:
-        return P_INVALID_PIECE;
-    }
-}
-
-char get_fen_char_by_piece(Piece c)
-{
-    switch (c) {
-    case P_PAWN: return'p';
-    case P_ROOK: return'r';
-    case P_BISHOP: return'b';
-    case P_KNIGHT: return'n';
-    case P_QUEEN: return'q';
-    case P_KING: return  'k';
-    default: return ' ';
-    }
-}
-
-Color get_color_by_char(char c)
+inline constexpr Color get_color_by_char_fen(char c)
 {
     if ('a' <= c && c <= 'z') {
         return C_BLACK;
@@ -88,8 +49,8 @@ void fen_read_position(Board &b, std::istream& input)
             break;
         }
 
-        Piece p = get_piece_by_char(c);
-        Color clr = get_color_by_char(c);
+        Piece p = get_piece_by_char_fen(c);
+        Color clr = get_color_by_char_fen(c);
 
         if (p != P_INVALID_PIECE)
         {

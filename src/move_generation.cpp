@@ -462,18 +462,6 @@ MoveList enumerate_attacks(const Board& b, Color to_move)
     return moveList;
 }
 
-std::string piece_to_move_letter(Piece p) {
-    switch (p) {
-        case P_PAWN: return "";
-        case P_ROOK: return "R";
-        case P_BISHOP: return "B";
-        case P_KNIGHT: return "N";
-        case P_QUEEN: return "Q";
-        case P_KING: return "K";
-        default: return "X";
-    }
-}
-
 
 std::string pos_to_square_name(const Pos& p) {
     char s[2] = { 0 };
@@ -485,19 +473,6 @@ Pos square_name_to_pos(const std::string& s) {
         (uint8_t)(s[1] - '1'),
         (uint8_t)(s[0] - 'a')
     };
-}
-std::string get_char_by_piece_pgn(Piece p)
-{
-    switch (p) {
-        case P_PAWN: return "p";
-        case P_ROOK: return "r";
-        case P_BISHOP: return "b";
-        case P_KNIGHT: return "n";
-        case P_QUEEN: return "q";
-        case P_KING: return "k";
-        case P_EMPTY: return " ";
-        default: return "X";
-    }
 }
 
 std::string move_to_string(const Move& m)

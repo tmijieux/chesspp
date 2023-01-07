@@ -115,5 +115,101 @@ using MovePtrList = std::vector<Move*>;
 using KillerMoves = std::vector<MoveList>;
 
 
+inline constexpr std::string piece_to_move_letter(Piece p) {
+    switch (p) {
+        case P_PAWN: return "";
+        case P_ROOK: return "R";
+        case P_BISHOP: return "B";
+        case P_KNIGHT: return "N";
+        case P_QUEEN: return "Q";
+        case P_KING: return "K";
+        default: return "X";
+    }
+}
+
+inline constexpr std::string get_char_by_piece_pgn(Piece p)
+{
+    switch (p) {
+        case P_PAWN: return "p";
+        case P_ROOK: return "r";
+        case P_BISHOP: return "b";
+        case P_KNIGHT: return "n";
+        case P_QUEEN: return "q";
+        case P_KING: return "k";
+        case P_EMPTY: return " ";
+        default: return "X";
+    }
+}
+inline constexpr Piece get_piece_by_char_pgn(char c)
+{
+    switch (c) {
+        case 'R': return P_ROOK;
+        case 'B': return P_BISHOP;
+        case 'N': return P_KNIGHT;
+        case 'Q': return P_QUEEN;
+        case 'K': return P_KING;
+        default: return P_PAWN;
+    }
+}
+
+
+inline constexpr char get_char_by_piece(Piece p)
+{
+    switch (p) {
+    case P_PAWN: return 'p';
+    case P_ROOK: return 'r';
+    case P_BISHOP: return 'b';
+    case P_KNIGHT: return 'n';
+    case P_QUEEN: return 'q';
+    case P_KING: return 'k';
+    case P_EMPTY: return ' ';
+    default: return 'X';
+    }
+}
+
+
+inline constexpr char get_fen_char_by_piece(Piece c)
+{
+    switch (c) {
+    case P_PAWN: return'p';
+    case P_ROOK: return'r';
+    case P_BISHOP: return'b';
+    case P_KNIGHT: return'n';
+    case P_QUEEN: return'q';
+    case P_KING: return  'k';
+    default: return ' ';
+    }
+}
+
+
+inline constexpr Piece get_piece_by_char_fen(char c)
+{
+    switch (c) {
+    case 'p':
+    case 'P':
+        return P_PAWN;
+    case 'r':
+    case 'R':
+        return P_ROOK;
+    case 'b':
+    case 'B':
+        return P_BISHOP;
+    case 'n':
+    case 'N':
+        return P_KNIGHT;
+    case 'q':
+    case 'Q':
+        return P_QUEEN;
+    case 'k':
+    case 'K':
+        return P_KING;
+    default:
+        return P_INVALID_PIECE;
+    }
+}
+
+
+
+
 
 #endif // CHESS_MOVE_H

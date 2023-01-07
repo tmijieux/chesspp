@@ -24,6 +24,8 @@ set(tistouchess_src
   uci.cpp
   transposition_table.hpp
   transposition_table.cpp
+  pgn.hpp
+  pgn.cpp
 )
 
 #add_executable(chess WIN32 ${tistouchess_src})
