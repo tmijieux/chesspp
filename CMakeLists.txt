@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(chesspp CXX)
+project(tistouchess CXX)
 
 option(WITH_SDL "enable sdl ui" OFF)
 
