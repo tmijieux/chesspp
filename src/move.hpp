@@ -25,11 +25,11 @@ public:
     Piece promote_piece;
 
     unsigned en_passant : 1;
-    unsigned killer:1;
-    unsigned mate_killer:1;
-    unsigned hash_move:1;
-    unsigned takes:1;
-    unsigned castling:1;
+    unsigned killer : 1;
+    unsigned mate_killer : 1;
+    unsigned hash_move : 1;
+    unsigned takes : 1;
+    unsigned castling : 1;
     unsigned legal : 1;
     unsigned legal_checked : 1;
     unsigned promote : 1;
@@ -46,6 +46,7 @@ public:
         killer_freq{0},
         see_value{0},
         killer{false},
+        mate_killer{false},
         hash_move{false},
         en_passant{false},
         piece{P_INVALID_PIECE},
@@ -57,7 +58,7 @@ public:
         promote{ false },
         checks{ false },
         mate{false},
-        promote_piece(P_INVALID_PIECE),
+        promote_piece{ P_EMPTY },
         m_board_state_before{ 0 },
         m_board_key_before{ 0 },
         legal{false},
@@ -72,9 +73,13 @@ public:
         half_move_before = b.get_half_move();
     }
 
-    bool operator==(const Move& o)
+    inline bool operator==(const Move& o)
     {
-        return dst == o.dst && src==o.src && piece == o.piece;
+        return dst == o.dst
+            && src ==o.src 
+            && piece == o.piece
+            && promote == o.promote
+            && promote_piece == o.promote_piece;
     }
 
     Move reverse() const
@@ -82,13 +87,16 @@ public:
         if (!takes) {
             throw chess_exception("cannot reverse if not capture");
         }
-        Move m;
+        Move m = *this;
         m.dst = src;
         m.src = dst;
-        m.takes = true;
+        m.takes = piece != P_EMPTY;
         m.taken_piece = piece;
         m.piece = taken_piece;
         m.color = other_color(color);
+        if (m.takes && m.taken_piece == P_EMPTY) {
+            std::abort();
+        }
 
 
         m.castling = castling;

@@ -68,7 +68,7 @@ private:
     uint32_t m_max_depth;
     uint32_t m_current_max_depth; // iterative deepening;
 
-    Hash m_hash;
+    Hash<HashEntry> m_hash;
 
     //  current_max_depth, current_depth
     std::map<uint32_t, std::map<uint32_t, Stats>> m_stats;
@@ -159,7 +159,8 @@ public:
 
     void set_max_depth(int maxdepth);
     void set_current_maxdepth(int maxdepth) { m_current_max_depth = maxdepth; }
-    uint64_t perft(Board &b, int max_depth, int remaining_depth, std::vector<uint64_t> &res);
+    uint64_t perft(Board &b, int max_depth, int remaining_depth, 
+        std::vector<uint64_t> &res, Hash<PerftHashEntry>&);
     void do_perft(Board &b, int depth);
 };
 

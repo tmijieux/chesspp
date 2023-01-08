@@ -26,7 +26,7 @@ private:
     // custom events
     int m_move_event;
 
-    std::vector<Board> m_history;
+    std::vector<Move> m_history;
     bool m_history_mode;
     uint64_t m_current_history_pos;
 

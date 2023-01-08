@@ -54,7 +54,7 @@ int32_t NegamaxEngine::quiesce(
     MoveList moveList;
     {
         SmartTime st{ m_move_generation2_timer };
-        moveList = enumerate_moves(b, true);
+        moveList = generate_pseudo_moves(b, true);
     }
 
     {
@@ -303,7 +303,7 @@ int32_t NegamaxEngine::negamax(
         else
         {
             SmartTime st{ m_move_generation_timer };
-            moveList = enumerate_moves(b);
+            moveList = generate_pseudo_moves(b);
         }
 
         {
@@ -809,19 +809,42 @@ std::pair<bool,Move> find_best_move(Board& b)
 uint64_t NegamaxEngine::perft(
     Board &b,
     int max_depth, int remaining_depth,
-    std::vector<uint64_t> &res)
+    std::vector<uint64_t> &res, Hash<PerftHashEntry> &hash)
 {
     if (remaining_depth == 0) {
         return 1;
     }
-
-    MoveList ml = enumerate_moves(b);
+    auto key = b.get_key();
+    auto& hashentry = hash.get(key);
+    uint64_t full_key = HashMethods::full_hash(b);
+    if (key != full_key) {
+        std::abort();
+    }
+    if (hashentry.key == key && hashentry.depth == remaining_depth)
+    {
+        res[max_depth - remaining_depth] += hashentry.nummoves;
+        return hashentry.value;
+    }
     Color clr = b.get_next_move();
+
+    MoveList ml;
+    //if (b.is_king_checked(clr))
+    //{
+    //    ml = generate_check_evading_moves(b);
+    //}
+    //else
+    //{
+        ml = generate_pseudo_moves(b);
+    //}
+
 
     uint64_t total = 0;
     int num_legal_move = 0;
     for (auto &move : ml)
     {
+        //if (move.legal_checked && !move.legal) {
+        //    continue;
+        //}
         b.make_move(move);
         if (b.is_king_checked(clr))
         {
@@ -829,7 +852,7 @@ uint64_t NegamaxEngine::perft(
             continue;
         }
         ++num_legal_move;
-        uint64_t val = perft(b, max_depth, remaining_depth-1, res);
+        uint64_t val = perft(b, max_depth, remaining_depth-1, res, hash);
 
         total += val;
         b.unmake_move(move);
@@ -839,6 +862,12 @@ uint64_t NegamaxEngine::perft(
         }
     }
     res[max_depth-remaining_depth] += num_legal_move;
+    if (remaining_depth > hashentry.depth) {
+        hashentry.key = key;
+        hashentry.depth = remaining_depth;
+        hashentry.value = total;
+        hashentry.nummoves = num_legal_move;
+    }
     return total;
 }
 
@@ -857,13 +886,46 @@ void NegamaxEngine::set_max_depth(int maxdepth)
     }
 }
 
+std::string human_readable(double value)
+{
+    if (value < 1000) {
+        return fmt::format("{:g}", value);
+    }
+    else if (value < 1000000) {
+        value /= 1000.0;
+        return fmt::format("{:.3g}K", value);
+    } else if (value < 1000000000) {
+        value /= 1000000.0;
+        return fmt::format("{:.3g}M", value);
+    } else  {
+        value /= 1000000000.0;
+        return fmt::format("{:.3g}B", value);
+    }
+}
+
 void NegamaxEngine::do_perft(Board &b, int depth)
 {
+    Hash<PerftHashEntry> hash;
     std::vector<uint64_t> res;
     res.resize(depth);
     std::fill(res.begin(), res.end(), 0);
+    Timer t;
+    t.start();
+    int64_t total = perft(b, depth, depth, res, hash);
+    t.stop();
+    double duration = t.get_length();
+    if (duration != 0) {
+        std::cout << fmt::format(
+            "{} moves in {} seconds ({} moves per seconds)\n",
+            human_readable(total), duration, human_readable(total / duration));
+    }
+    else {
+        std::cout << fmt::format(
+            "{} moves in ~0 seconds (time window to small for precise measurement)\n",
+            total);
+    }
 
-    perft(b, depth, depth, res);
+
 
     for (int i = 0; i < depth; ++i) {
         uci_send_info_string(

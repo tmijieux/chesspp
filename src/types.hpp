@@ -131,7 +131,7 @@ public:
     {
     }
 
-    bool operator==(const Pos& o) const {
+    inline bool operator==(const Pos& o) const {
         return row == o.row && column == o.column;
     }
     const uint8_t to_val() const { return row * 8 + column; }

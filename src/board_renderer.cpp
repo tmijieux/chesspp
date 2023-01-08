@@ -389,7 +389,7 @@ void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
                 continue;
             }
             b.make_move(m);
-            m_history.push_back(b);
+            m_history.push_back(m);
 
             player_move_done = true;
             break;
@@ -412,7 +412,7 @@ void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
     //    }
     //    else {
     //        b.make_move(move);
-    //        m_history.push_back(b);
+    //        m_history.push_back(move);
     //    }
     //}
     m_need_redraw = true;
@@ -422,7 +422,6 @@ void BoardRenderer::main_loop(Board &b)
 {
     bool quit = false;
     bool down = false;
-    m_history.push_back(b);
 
     while (!quit)
     {
@@ -459,7 +458,6 @@ void BoardRenderer::main_loop(Board &b)
                 b.load_initial_position();
                 m_candidates_moves.clear();
                 m_history.clear();
-                m_history.push_back(b);
                 m_current_history_pos = 0;
                 m_history_mode = false;
                 m_need_redraw = true;
@@ -482,24 +480,27 @@ void BoardRenderer::main_loop(Board &b)
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_LEFT)
             {
-                if (!m_history_mode && m_history.size() > 1) {
+                if (!m_history_mode && m_history.size() > 0) {
                     m_history_mode = true;
-                    m_current_history_pos = m_history.size() - 2;
+                    m_current_history_pos = m_history.size()-1;
+                    b.unmake_move(m_history[m_current_history_pos]);
                 }
-                else if (m_history_mode && m_current_history_pos >= 1) {
-                    m_current_history_pos = std::max(m_current_history_pos - 1, (uint64_t)0);
+                else if (m_history_mode && m_current_history_pos > 0) {
+                    m_current_history_pos = std::max(m_current_history_pos - 1, u64(0));
+                    b.unmake_move(m_history[m_current_history_pos]);
                 }
-                draw(m_history[m_current_history_pos]);
+                draw(b);
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_RIGHT)
             {
                 if (m_history_mode) {
-                    m_current_history_pos = std::min(m_current_history_pos + 1, m_history.size()-1);
+                    m_current_history_pos = std::min(m_current_history_pos + 1, m_history.size());
 
-                    if (m_current_history_pos == m_history.size() - 1) {
+                    if (m_current_history_pos == m_history.size()) {
                         m_history_mode = false;
                     }
-                    draw(m_history[m_current_history_pos]);
+                    b.make_move(m_history[m_current_history_pos-1]);
+                    draw(b);
                 }
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_o)
@@ -517,6 +518,8 @@ void BoardRenderer::main_loop(Board &b)
                     try
                     {
                         pgn::load_pgn_file(content, b, move_history);
+                        m_history_mode = false;
+                        m_history = move_history;
 
                     }
                     catch (chess_exception& e)
@@ -540,7 +543,6 @@ void BoardRenderer::main_loop(Board &b)
                     load_test_position(b, q);
                     m_need_redraw = true;
                     m_history.clear();
-                    m_history.push_back(b);
                     m_current_history_pos = 0;
                     m_history_mode = false;
 

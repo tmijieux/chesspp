@@ -10,6 +10,7 @@
 #include "./board.hpp"
 #include "./move.hpp"
 #include "./move_generation.hpp"
+#include "./uci.hpp"
 
 
 namespace pgn
@@ -71,15 +72,14 @@ void find_optional_src(const std::string &san, Pos &src)
     }
 }
 
-void find_move_src_for_attacking_piece(const Board &b, Move &move)
+void find_move_src_for_attacking_piece(Board &b, Move &move)
 {
     if (move.src.row != 0xFF && move.src.column != 0xFF)
     {
         return;
     }
-
     MoveList ml;
-    find_move_to_position(b, move.dst, ml, move.color, -1, false, false);
+    find_move_to_position(b, move.dst, ml, move.color, -1, false);
     if (move.src.row != 0xFF)
     {
         // find on given row
@@ -122,7 +122,7 @@ void find_move_src_for_attacking_piece(const Board &b, Move &move)
 /**
  * compute the move the the standart algebraic notation (abbreviated as `san`)
  */
-Move compute_move_from_san(const std::string& san, Color clr, const Board& b)
+Move compute_move_from_san(const std::string& san, Color clr, Board& b)
 {
     //Move generate_move_for_squares(
     //    const Board & b, const Pos & src, const Pos & dst, Piece promote_piece);
@@ -140,21 +140,22 @@ Move compute_move_from_san(const std::string& san, Color clr, const Board& b)
     }
 
     char first_letter = san[0];
-    
-    Piece piece = get_piece_by_char_pgn(first_letter);
-
     Move move;
+
+    move.piece = get_piece_by_char_pgn(first_letter);
+
     move.color = clr;
 
-    const std::string columns = "abcdefgh";
-    const std::string rows = "12345678";
+    size_t i = san.size();
 
-    char c = san[san.size() - 1];
+    char c = san[i - 1];
     bool checkMate = (c == '#');
     bool check = checkMate || (c == '+');
-    size_t i = san.size()-1;
-    Piece promote = get_piece_by_char_pgn(san[i]);
-    if (promote != P_PAWN || san[i - 1] == '=')
+    if (check || checkMate) {
+        --i;
+    }
+    Piece promote = get_piece_by_char_pgn(san[i-1]);
+    if (promote != P_PAWN && san[i - 2] == '=')
     {
         i -= 2;
     }
@@ -162,27 +163,34 @@ Move compute_move_from_san(const std::string& san, Color clr, const Board& b)
     {
         promote = P_EMPTY;
     }
+    move.promote = promote;
+    move.dst.row = san[i - 1] - '1';
+    move.dst.column = san[i - 2] - 'a';
+    i -= 2;
 
-
-    bool takes = false;
-    move.dst.column = san[i] - '1';
-    move.dst.row = san[i - 1] - 'a';
-    auto sub1 = san.substr(0, i - 1);
-
-    if (sub1 == piece_to_move_letter(piece)) {
+    if (i <= 1) {
+        find_optional_src("", move.src);
         find_move_src_for_attacking_piece(b, move);
     }
-    else if (san[i - 2] == 'x') {
+    else if (i >= 2 && i <= 4 && san[i-1] == 'x') {
         move.takes = 1;
         move.taken_piece = b.get_piece_at(move.dst);
+        int begin = move.piece == P_PAWN ? 0 : 1;
 
-        std::string sub = san.substr(std::max((size_t)0, i - 4), i - 2);
-        find_optional_src(sub, move.src);
-        find_move_src_for_attacking_piece(b, move);    }
+        std::string srcstr = san.substr(begin, i - 1 - begin);
+        find_optional_src(srcstr, move.src);
+        find_move_src_for_attacking_piece(b, move);   
+    }
     else {
-        std::string sub = san.substr(std::max((size_t)0, i - 3), i - 1);
-        find_optional_src(sub, move.src);
+        int begin = move.piece == P_PAWN ? 0 : 1;
+
+        std::string srcstr = san.substr(begin, i-begin);
+        find_optional_src(srcstr, move.src);
         find_move_src_for_attacking_piece(b, move);
+    }
+    if (move.src.row == 0xFF || move.src.column == 0xFF)
+    {
+        std::cout << "err\n";
     }
     return move;
 }
@@ -410,9 +418,10 @@ void load_pgn_file(const std::string &body, Board &b, MoveList &moves)
            }
         } else if (!in_tag_pair) {
            if (token.type != T_PERIOD) {
-               next_is_black = seen_period_count == 3;
+               //next_is_black = seen_period_count == 3;
                seen_period_count = 0;
            }
+
            if (token.type == T_PERIOD) {
                ++seen_period_count;
            } else if (token.type == T_INTEGER) {
@@ -429,11 +438,12 @@ void load_pgn_file(const std::string &body, Board &b, MoveList &moves)
                    break;
                }
                Color clr = next_is_black ? C_BLACK : C_WHITE;
-               Move move = compute_move_from_san(token.value, clr, b);
-               b.make_move(move);
-               moves.push_back(move);
-
                next_is_black = !next_is_black;
+
+               Move move = compute_move_from_san(token.value, clr, b);
+               moves.push_back(move);
+               b.make_move(move);
+
            }
         }
     }

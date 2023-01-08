@@ -36,6 +36,20 @@ struct HashParams
     static void init_params();
 };
 
+struct PerftHashEntry {
+    uint64_t key;
+    uint16_t depth;
+    uint64_t value;
+    uint32_t nummoves;
+    PerftHashEntry() :
+        key{ 0 },
+        depth{ 0 },
+        value{ 0 },
+        nummoves{ 0 }
+    {
+
+    }
+};
 struct HashEntry {
     uint64_t key;
     uint16_t depth;
@@ -63,10 +77,11 @@ struct HashEntry {
 
 };
 
+template<typename E = HashEntry>
 struct Hash
 {
 private:
-    std::unordered_map<uint64_t,HashEntry> m_entries;
+    std::unordered_map<uint64_t,E> m_entries;
 public:
     Hash(){}
 
@@ -80,7 +95,7 @@ public:
         m_entries.clear();
     }
 
-    inline HashEntry& get(uint64_t bkey) {
+    inline E& get(uint64_t bkey) {
 
         //uint64_t mask = (1 << 27) - 1;
         //uint32_t key = (uint32_t)(bkey & mask);
@@ -88,16 +103,19 @@ public:
 
         auto it = m_entries.find(key);
         if (it == m_entries.end()) {
-            auto res = m_entries.emplace(key, HashEntry{});
+            auto res = m_entries.emplace(key, E{});
             return res.first->second;
         }
         return it->second;
     }
 
+
+};
+
+struct HashMethods {
     static uint64_t full_hash(const Board& b);
     static void make_move(const Board& b, uint64_t& hash, const Move& move, uint8_t castle_diff);
     static std::string to_string(uint64_t hash);
-
 };
 
 #endif // CHESS_TRANSPOSITION_TABLE_H

@@ -48,5 +48,8 @@ inline void uci_send_info_string(T&& info, K&&... k)
     uci_send("info string {}\n", fmt::format(std::forward<T>(info), std::forward<K>(k)...));
 }
 
+class Board;
+void console_draw(const Board& board);
+
 
 #endif // CHESS_UCI_H

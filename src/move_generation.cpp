@@ -6,7 +6,6 @@
 #include "./evaluation.hpp"
 
 
-
 bool can_en_passant(const Board &b, const Pos &src, const Pos &dst) {
     Pos ep_pos = b.get_en_passant_pos();
     if (ep_pos.row == 0)
@@ -19,28 +18,87 @@ bool can_en_passant(const Board &b, const Pos &src, const Pos &dst) {
     return false;
 }
 
+inline constexpr uint8_t promote_row(Color clr) {
+    return clr * 7; // WHITE=7 BLACK=0
+}
+inline constexpr uint8_t start_row(Color clr) {
+    return  6 - 5 * clr; // WHITE=1 BLACK=6
+}
+
+void generate_pawn_move_dst(
+    const Board& b, const Pos& dst, Color clr,  MoveList& moveList)
+{
+    int8_t offset = clr == C_WHITE ? -1 : +1;
+    uint8_t prevRow = dst.row + offset;
+    if (prevRow > 7) {
+        return;
+    }
+    if (b.get_piece_at(dst) != P_EMPTY)
+    {
+        return;
+    }
+
+    Pos src{ prevRow, dst.column};
+    if (b.get_piece_at(src) == P_PAWN)
+    {
+        bool can_promote = dst.row == promote_row(clr);
+        Move m{ b };
+        m.src = src;
+        m.dst = dst;
+        m.takes = false;
+        m.piece = P_PAWN;
+        m.color = clr;
+        m.promote = can_promote;
+        if (can_promote) {
+            for (int p = P_BISHOP; p <= P_QUEEN; ++p) {
+                m.promote_piece = (Piece)p;
+                moveList.emplace_back(m);
+            }
+        } else {
+            m.promote_piece = P_EMPTY;
+            moveList.emplace_back(m);
+        }
+    }
+    else if (b.get_piece_at(src) == P_EMPTY)
+    {
+        // initial pawn 2 square move
+        Pos src2{ u8(prevRow+offset), src.column};
+        if (src2.row == start_row(clr)
+            && b.get_piece_at(src2) == P_PAWN) {
+            Move m2{ b };
+            m2.src = src2;
+            m2.dst = dst;
+            m2.takes = false;
+            m2.piece = P_PAWN;
+            m2.color = clr;
+
+            moveList.emplace_back(m2);
+        }
+    }
+}
+
 void generate_pawn_move(
-    const Board& b, const Pos& pos, Color clr,
-    MoveList& moveList, bool only_takes, bool pawn_attacks)
+    Board& b, const Pos& src, Color clr,
+    MoveList& moveList, bool only_takes)
 {
     int8_t offset = clr == C_WHITE ? +1 : -1;
-    uint8_t nextRow = pos.row + offset;
+    uint8_t nextRow = src.row + offset;
     if (nextRow > 7) {
         // this case can happen when generating reverse moves
         // to find attacks on a particular square
         return;
     }
 
-    Pos dst{ nextRow, pos.column};
-    bool can_promote = (nextRow == 7 && clr == C_WHITE) || (nextRow == 0 && clr==C_BLACK);
+    Pos dst{nextRow, src.column};
+    bool can_promote = nextRow == promote_row(clr);
 
-    if (b.get_piece_at(dst) == P_EMPTY && !pawn_attacks && !only_takes)
+    if (b.get_piece_at(dst) == P_EMPTY && !only_takes)
     {
         Move m{ b };
-        m.src = pos;
+        m.src = src;
         m.dst = dst;
         m.takes = false;
-        m.piece = b.get_piece_at(pos);
+        m.piece = b.get_piece_at(src);
         m.color = clr;
         m.promote = can_promote;
         if (can_promote) {
@@ -54,15 +112,14 @@ void generate_pawn_move(
         }
 
         // initial pawn 2 square move
-        Pos dst2{ u8(nextRow+offset), pos.column};
-        if (((pos.row == 1 && clr == C_WHITE)
-             || (pos.row == 6 && clr == C_BLACK))
+        Pos dst2{ u8(nextRow+offset), src.column};
+        if (src.row == start_row(clr)
             && b.get_piece_at(dst2) == P_EMPTY) {
             Move m2{ b };
-            m2.src = pos;
+            m2.src = src;
             m2.dst = dst2;
             m2.takes = false;
-            m2.piece = b.get_piece_at(pos);
+            m2.piece = b.get_piece_at(src);
             m2.color = clr;
 
             moveList.emplace_back(m2);
@@ -70,27 +127,25 @@ void generate_pawn_move(
     }
 
     Pos dsts[2];
-    dsts[0] = Pos(nextRow, pos.column - 1);
-    dsts[1] = Pos(nextRow, pos.column + 1);
+    dsts[0] = Pos(nextRow, src.column - 1);
+    dsts[1] = Pos(nextRow, src.column + 1);
     for (const auto &dst : dsts) {
-        if (dst.row < 0 || dst.row > 7 || dst.column < 0 || dst.column > 7) {
+        if (dst.row > 7 || dst.column > 7) {
             continue;
         }
         Color dst_color = b.get_color_at(dst);
-        bool en_passant = can_en_passant(b, pos, dst);
-        if (dst_color == other_color(clr)
-            || (pawn_attacks && dst_color == C_EMPTY && !only_takes)
-            || en_passant)
+        bool en_passant = can_en_passant(b, src, dst);
+        if (dst_color == other_color(clr) || en_passant)
         {
 
             Move m{ b };
-            m.src = pos;
+            m.src = src;
             m.dst = dst;
             m.takes = true;
-            m.piece = b.get_piece_at(pos);
-            m.taken_piece = b.get_piece_at(dst);
-            if (en_passant) {
-                m.taken_piece = P_PAWN;
+            m.piece = b.get_piece_at(src);
+            m.taken_piece = en_passant ? P_PAWN : b.get_piece_at(dst);
+            if (m.taken_piece == P_EMPTY) {
+                std::abort();
             }
             m.color = clr;
             m.en_passant = en_passant;
@@ -126,7 +181,7 @@ void generate_move_for_direction(
         bool takes = false;
         pos.row = initial_pos.row + distance * dir.offset.row;
         pos.column = initial_pos.column + distance * dir.offset.column;
-        if (pos.row < 0 || pos.row >7 || pos.column < 0 || pos.column > 7) {
+        if (pos.row >7 || pos.column > 7) {
             break;
         }
 
@@ -149,7 +204,10 @@ void generate_move_for_direction(
         m.dst = pos;
         m.takes = takes;
         m.taken_piece = b.get_piece_at(pos);
-
+        if (m.takes && m.taken_piece == P_EMPTY)
+        {
+            std::abort();
+        }
         moveList.emplace_back(m);
         if (takes) {
             break;
@@ -223,8 +281,8 @@ void generate_queen_move(const Board& b, const Pos& pos, Color clr, MoveList& mo
 }
 
 
-void castle_king_side(
-    const Board& b, const Pos& pos, Color clr, MoveList& moveList)
+void gen_castle_king_side(
+    Board& b, const Pos& pos, Color clr, MoveList& moveList)
 {
     auto rights = b.get_castle_rights();
     auto idxKing = clr == C_WHITE ? CR_KING_WHITE : CR_KING_BLACK;
@@ -259,8 +317,8 @@ void castle_king_side(
     moveList.emplace_back(OO);
 }
 
-void castle_queen_side(
-    const Board& b, const Pos& pos, Color clr, MoveList& moveList)
+void gen_castle_queen_side(
+    Board& b, const Pos& pos, Color clr, MoveList& moveList)
 {
     auto rights = b.get_castle_rights();
     auto idxQueen = clr == C_WHITE ? CR_QUEEN_WHITE : CR_QUEEN_BLACK;
@@ -289,19 +347,24 @@ void castle_queen_side(
 }
 
 void generate_castle_move(
-    const Board& b, const Pos& pos, Color clr, MoveList& moveList)
+    Board& b, const Pos& pos, Color clr, MoveList& moveList)
 {
-    castle_king_side(b, pos, clr, moveList);
-    castle_queen_side(b, pos, clr, moveList);
+    gen_castle_king_side(b, pos, clr, moveList);
+    gen_castle_queen_side(b, pos, clr, moveList);
 }
 
 
 void find_move_to_position(
-    const Board& b, const Pos& pos, MoveList& moveList,
-    Color move_clr, int16_t max_move, bool only_takes, bool pawn_attacks)
+    Board& b, const Pos& pos, MoveList& moveList,
+    Color move_clr, int16_t max_move, bool only_takes)
 {
     // generate "reversed move" starting from destination and other color
     // and then "reverse" the moves
+    Piece at_dst = b.get_piece_at(pos);
+    if (only_takes &&  at_dst == P_EMPTY)
+    {
+        return;
+    }
 
     Color enemy_clr = other_color(move_clr);
 
@@ -348,13 +411,30 @@ void find_move_to_position(
     }
 
     {
-        MoveList tmpList;
-        generate_pawn_move(b, pos, enemy_clr, tmpList, only_takes, pawn_attacks);
-        for (const auto& m : tmpList)
+        if (at_dst != P_EMPTY)
         {
-            if (m.taken_piece == P_PAWN)
+            // only takes here
+            MoveList tmpList;
+            generate_pawn_move(b, pos, enemy_clr, tmpList, true);
+            for (const auto& m : tmpList)
             {
-                moveList.emplace_back(m.reverse());
+                if (m.taken_piece == P_PAWN)
+                {
+                    moveList.emplace_back(m.reverse());
+                    if (max_move > 0 && moveList.size() >= max_move) {
+                        return;
+                    }
+                }
+            }
+        }
+
+        if (!only_takes)
+        {
+            MoveList tmpList;
+            generate_pawn_move_dst(b, pos, move_clr, tmpList);
+            for (const auto& m : tmpList)
+            {
+                moveList.emplace_back(m);
                 if (max_move > 0 && moveList.size() >= max_move) {
                     return;
                 }
@@ -380,8 +460,8 @@ void find_move_to_position(
 }
 
 void add_move_from_position(
-    const Board &b, const Pos & pos,
-    MoveList &moveList, bool only_takes, bool pawn_attacks)
+    Board &b, const Pos & pos,
+    MoveList &moveList, bool only_takes)
 {
 
     Piece piece = b.get_piece_at(pos);
@@ -391,7 +471,7 @@ void add_move_from_position(
     }
     switch (piece) {
         case P_PAWN:
-            generate_pawn_move(b, pos, clr, moveList, only_takes, pawn_attacks);
+            generate_pawn_move(b, pos, clr, moveList, only_takes);
             break;
         case P_BISHOP:
             generate_bishop_move(b, pos, clr, moveList, only_takes);
@@ -417,7 +497,93 @@ void add_move_from_position(
     }
 }
 
-MoveList enumerate_moves(const Board& b, bool only_takes)
+void remove_duplicate_moves(MoveList &ml)
+{
+    int invalid_count = 0;
+    for (size_t i = 1; i < ml.size(); ++i) {
+
+        for (size_t j = 0; j < i; ++j) {
+            if (ml[j].legal_checked) {
+                continue;
+            }
+            if (ml[i] == ml[j]) {
+                ml[i].legal_checked = true;
+                ml[i].legal = false;
+                ++invalid_count;
+                break;
+            }
+        }
+    }
+    // compact
+    for (size_t i = 1; i < ml.size(); ++i)
+    {
+        if (ml[i].legal_checked) {
+            continue;
+        }
+        for (size_t j = 0; j < i; ++j) {
+            if (ml[j].legal_checked) {
+                std::swap(ml[i], ml[j]);
+                continue;
+            }
+        }
+    }
+    ml.resize(ml.size() - invalid_count);
+}
+
+MoveList generate_check_evading_moves(Board& b)
+{
+    Color clr = b.get_next_move();
+    Pos kpos = b.get_king_pos(clr);
+    MoveList king_attacks;
+    find_move_to_position(b, kpos, king_attacks, other_color(clr), 2, true);
+    bool double_check = king_attacks.size() > 1;
+    MoveList res;
+
+    if (double_check)
+    {
+        // move king out of the way
+        generate_queen_move(b, kpos, clr, res, 1, false);
+        return res;
+    }
+    if (king_attacks.size() == 0) {
+        throw chess_exception("no checks ??");
+    }
+    auto& attacker_pos = king_attacks[0].src;
+    Piece checker = b.get_piece_at(attacker_pos);
+    if (checker == P_KNIGHT)
+    {
+        // capture the knight
+        find_move_to_position(b, attacker_pos, res, clr, -1, true);
+        // or move out of the way
+        generate_queen_move(b, kpos, clr, res, 1, false);
+        return res;
+    }
+    else
+    {
+        // capture the piece
+        find_move_to_position(b, attacker_pos, res, clr, -1, true);
+
+        int rd = attacker_pos.row - kpos.row;
+        int ro = rd / std::max(std::abs(rd), 1);
+        int cd = attacker_pos.column - kpos.column;
+        int co = cd / std::max(std::abs(cd), 1);
+
+        // block the attack
+        for (uint8_t i = kpos.row+ro, j = kpos.column+co;
+             i != attacker_pos.row || j != attacker_pos.column;
+             i += ro, j += co)
+        {
+            find_move_to_position(b, Pos{ i,j }, res, clr, -1, false);
+        }
+        // or move out of the way
+        generate_queen_move(b, kpos, clr, res, 1, false);
+
+        remove_duplicate_moves(res);
+        return res;
+    }
+}
+
+MoveList generate_pseudo_moves(Board& b, bool only_takes)
 {
     Color to_move = b.get_next_move();
 
@@ -428,13 +594,13 @@ MoveList enumerate_moves(const Board& b, bool only_takes)
         if (clr != to_move) {
             continue;
         }
-        add_move_from_position(b, pos, moveList, only_takes, false);
+        add_move_from_position(b, pos, moveList, only_takes);
     }
     return moveList;
 }
 
 Move generate_move_for_squares(
-    const Board &b,  const Pos &src, const Pos &dst, Piece promote_piece)
+    Board &b,  const Pos &src, const Pos &dst, Piece promote_piece)
 {
     MoveList ml;
     add_move_from_position(b, src, ml, false);
@@ -443,12 +609,12 @@ Move generate_move_for_squares(
             return m;
         }
     }
-    return Move{};
+    throw chess_exception("unreachable");
 }
 
 
 
-MoveList enumerate_attacks(const Board& b, Color to_move)
+MoveList enumerate_attacks(Board& b, Color to_move)
 {
     MoveList moveList;
     for (uint8_t i = 0; i < 64; ++i) {

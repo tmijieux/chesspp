@@ -158,7 +158,7 @@ MoveList parse_moves(Board& b, const StringList& tokens, size_t begin, size_t en
         Pos src = square_name_to_pos(s_src);
         Pos dst = square_name_to_pos(s_dst);
         MoveList ml;
-        add_move_from_position(b, src, ml, false, false);
+        add_move_from_position(b, src, ml, false);
         bool move_found = false;
         for (auto& m : ml) {
             if (m.dst == dst

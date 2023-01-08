@@ -235,7 +235,7 @@ int32_t compute_see(Board &b, const Move &m)
 
     // find enemy move
     MoveList moveList;
-    find_move_to_position(b, dst, moveList, b.get_next_move(), -1, true, false);
+    find_move_to_position(b, dst, moveList, b.get_next_move(), -1, true);
     if (moveList.size() > 0)
     {
         Move smallest;

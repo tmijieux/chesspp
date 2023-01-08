@@ -10,7 +10,7 @@ void Board::load_position(const std::string& fen_position)
 {
     FenReader r;
     r.load_position(*this, fen_position);
-    m_key = Hash::full_hash(*this);
+    m_key = HashMethods::full_hash(*this);
 }
 
 void load_test_position(Board &b, int position)
@@ -35,7 +35,7 @@ void Board::load_initial_position()
 }
 
 Piece Board::get_piece_at(const Pos& pos) const {
-    if (pos.column > 7 || pos.column < 0 || pos.row > 7 || pos.row < 0) {
+    if (pos.column > 7 || pos.row > 7) {
         std::abort();
     }
     auto x = pos.column + pos.row * 8;
@@ -47,7 +47,7 @@ Piece Board::get_piece_at(const Pos& pos) const {
 
 Color Board::get_color_at(const Pos& pos) const {
 
-    if (pos.column > 7 || pos.column < 0 || pos.row > 7 || pos.row < 0) {
+    if (pos.column > 7 || pos.row > 7) {
         std::abort();
     }
     uint8_t x = pos.column + pos.row * 8;
@@ -62,7 +62,14 @@ Color Board::get_color_at(const Pos& pos) const {
 
 void Board::set_piece_at(const Pos& pos, Piece p, Color c) {
 
-    if (pos.column > 7 || pos.column < 0 || pos.row > 7 || pos.row < 0) {
+    if (pos.column > 7 || pos.row > 7) {
+        std::abort();
+    }
+    if (c == C_WHITE && p == P_EMPTY) {
+        std::abort();
+    }
+    if (p == P_INVALID_PIECE)
+    {
         std::abort();
     }
     uint8_t x = pos.column + pos.row * 8;
@@ -72,29 +79,34 @@ void Board::set_piece_at(const Pos& pos, Piece p, Color c) {
     uint8_t store = m_board[q];
     uint8_t newval = ((uint8_t)p) | (((uint8_t)c)<<3);
 
-    m_board[q] = (store & (0x0F << (4 * (1-n))))  | (newval << (4 * (n)));
+
+    m_board[q] = (store & (0x0F << (4 * (1-n))))  | (newval << (4 * n));
 
     if (p == P_KING) {
         set_king_pos(pos, c);
     }
 }
 
-bool Board::is_square_attacked(const Pos &p, Color attacked_by_clr) const
+bool Board::is_square_attacked(const Pos &pos, Color attacked_by_clr)
 {
     MoveList ml;
-    if (p.column == 3 && p.row == 6) {
-        std::cout << "here\n";
+    bool fake_piece = get_piece_at(pos) == P_EMPTY;
+    if (fake_piece) {
+        set_piece_at(pos, P_PAWN, other_color(attacked_by_clr));
     }
-    find_move_to_position(*this, p, ml, attacked_by_clr, 1, false, true);
+    find_move_to_position(*this, pos, ml, attacked_by_clr, 1, true);
+    if (fake_piece) {
+        set_piece_at(pos, P_EMPTY, C_BLACK);
+    }
     return ml.size() == 1;
 }
 
-int8_t Board::compute_king_checked(Color clr) const
+int8_t Board::compute_king_checked(Color clr)
 { // start from king position and do 'inversed-move' of all type of piece
   // to see if we land on a threatening piece
     Pos p = get_king_pos(clr);
     MoveList ml;
-    find_move_to_position(*this, p, ml, other_color(clr), 1, true, false);
+    find_move_to_position(*this, p, ml, other_color(clr), 1, true);
     return ml.size() == 1 ? 1 : 0;
 }
 
@@ -142,7 +154,7 @@ void Board::make_move(const Move& move)
 
     // ------------------------
     // --- UPDATE HASH KEY ----
-    Hash::make_move(*this, m_key, move, old_castle_rights ^ new_castle_rights);
+    HashMethods::make_move(*this, m_key, move, old_castle_rights ^ new_castle_rights);
 
     // -------------------------------
     // ------ MOVE PIECES AROUND -----

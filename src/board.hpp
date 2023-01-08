@@ -49,7 +49,7 @@ private:
 
     //  12 + 4 + 4 + 2 + 1= 23
 
-    int8_t compute_king_checked(Color) const;
+    int8_t compute_king_checked(Color);
 
 public:
     Board():
@@ -73,16 +73,17 @@ public:
 
     Pos get_en_passant_pos() const {
         if (has_en_passant()) {
-            int8_t col = (m_flags >> EN_PASSANT_I) & (0x07);
+            uint8_t col = (m_flags >> EN_PASSANT_I) & (0x07);
             return col + 8 * (3 + get_next_move());
         }
         return 0;
     }
+
     bool has_en_passant() const { return ((m_flags >> EN_PASSANT_I) & 0x08) != 0; }
     uint8_t get_half_move() const { return m_half_move_counter ; }
     uint16_t get_full_move() const { return m_full_move_counter ; }
     uint32_t get_flags() const { return m_flags;  }
-    std::string get_key_string() const { return Hash::to_string(get_key()); }
+    std::string get_key_string() const { return HashMethods::to_string(get_key()); }
     uint64_t get_key() const { return m_key; }
 
     bool is_king_checked(Color clr) const {
@@ -95,7 +96,7 @@ public:
         return (val >> (6 * clr)) & 0x3F;
     }
     std::string get_pos_string() const { return write_fen_position(*this); }
-    bool is_square_attacked(const Pos& pos, Color clr) const;
+    bool is_square_attacked(const Pos& pos, Color clr);
 
 
     /* update board state */
