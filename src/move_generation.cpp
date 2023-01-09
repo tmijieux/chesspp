@@ -628,12 +628,20 @@ MoveList enumerate_attacks(Board& b, Color to_move)
     return moveList;
 }
 
+std::string col_name(uint8_t col) {
+    char s[2] = { 0 };
+    s[0] = ('a' + col);
+    return std::string(s);
+}
+std::string row_name(uint8_t row) {
+    return std::to_string((int)(row + 1));
+}
 
 std::string pos_to_square_name(const Pos& p) {
-    char s[2] = { 0 };
-    s[0] = ('a' + p.column);
-    return std::string(s) + std::to_string((int)(p.row+1));
+    return col_name(p.column) + row_name(p.row);
 }
+
+
 Pos square_name_to_pos(const std::string& s) {
     return Pos{
         (uint8_t)(s[1] - '1'),
@@ -646,6 +654,10 @@ std::string move_to_string(const Move& m)
     std::string res = "";
 
     res += piece_to_move_letter(m.piece);
+    if (m.piece == P_PAWN && m.takes)
+    {
+        res += col_name(m.src.column);
+    }
     if (m.takes) {
         res += "x";
     }
@@ -661,11 +673,59 @@ std::string move_to_string(const Move& m)
     else if (m.checks) {
         res += "+";
     }
-    if (m.takes && m.piece == P_PAWN) {
-        res = pos_to_square_name(m.src)[0] + res;
+    return res;
+}
+
+std::string move_to_string_disambiguate(Board &b, const Move& m)
+{
+    std::string res = move_to_string(m);
+    if (m.piece == P_PAWN || m.piece == P_KING) {
+        return res;
+    }
+    MoveList move_candidates;
+    find_move_to_position(b, m.dst, move_candidates, m.color, -1, m.takes);
+    int num_same_piece = 0;
+    for (auto& c : move_candidates) {
+        if (c.src != m.src && c.piece == m.piece) {
+            ++num_same_piece;
+        }
+    }
+    
+    if (num_same_piece >= 1)
+    {
+        bool has_on_same_row = false;
+        bool has_on_same_column = false;
+        for (auto& candidate : move_candidates)
+        {
+            if (candidate.piece == m.piece && candidate.src != m.src)
+            {
+                if (candidate.src.column == m.src.column) {
+                    has_on_same_row = true;
+                }
+                if (candidate.src.row == m.src.row) {
+                    has_on_same_row = true;
+                }
+            }
+        }
+        std::string extra;
+        if (has_on_same_row || has_on_same_column)
+        {
+            if (has_on_same_row) {
+                extra += col_name(m.src.column);
+            }
+            if (has_on_same_column) {
+                extra += row_name(m.src.row);
+            }
+        }
+        else
+        {
+            extra += col_name(m.src.column);
+        }
+        res = res.substr(0, 1) + extra + res.substr(1);
     }
     return res;
 }
+
 
 std::string move_to_uci_string(const Move& m)
 {

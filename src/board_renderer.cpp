@@ -418,7 +418,7 @@ void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
     m_need_redraw = true;
 }
 
-void BoardRenderer::main_loop(Board &b)
+void BoardRenderer::main_loop(Board &b, NegamaxEngine &engine)
 {
     bool quit = false;
     bool down = false;
@@ -468,6 +468,54 @@ void BoardRenderer::main_loop(Board &b)
                 std::cout << "Key:  " << b.get_key_string() << "\n";
                 std::cout << "Number of moves: " << b.get_full_move() << "\n";
                 std::cout << "50 move rules counter: " << (int)b.get_half_move() << "\n\n";
+            }
+            else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_h)
+            {
+                if (m_history_mode)
+                {
+                    continue;
+                }
+                std::cout << "loading history in PV!\n";
+                int32_t eval = evaluate_board(b);
+                Color clr = b.get_next_move();
+                if (b.is_king_checked(clr))
+                {
+                    MoveList moves = generate_pseudo_moves(b);
+                    int32_t num_legal_moves = 0;
+                    for (auto& m : moves)
+                    {
+                        b.make_move(m);
+                        if (!b.is_king_checked(clr))
+                        {
+                            ++num_legal_moves;
+                        }
+                        b.unmake_move(m);
+                    }
+                    if (num_legal_moves == 0) {
+                        eval = -20000 + m_history.size();
+                    }
+                }
+                engine.clear_hash();
+
+                auto size = m_history.size();
+                std::cout << "size=" << size << "\n";
+                for (auto i = size; i > 0; --i)
+                {
+                    b.unmake_move(m_history[i - 1]);
+                    eval = -eval;
+
+                    auto& entry = engine.m_hash.get(b.get_key());
+                    entry.depth = 2;
+                    entry.key = b.get_key();
+                    entry.exact_score = 1;
+                    entry.score = eval;
+                    entry.hashmove_dst = m_history[i - 1].dst.to_val();
+                    entry.hashmove_src = m_history[i - 1].src.to_val();
+
+                }
+                draw(b);
+                m_history_mode = true;
+                m_current_history_pos = 0;
             }
             else if (e.type == SDL_KEYDOWN && e.key.keysym.sym == SDLK_e)
             {

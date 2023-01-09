@@ -13,7 +13,7 @@ uint64_t HashParams::piece[HASH_PARAM_SIZE];
 
 void HashParams::init_params()
 {
-    uint64_t seed = u64(15925555970513767049 * 3);
+    constexpr uint64_t seed = u64(15925555970513767049 * 3);
     std::mt19937_64 gen64{ seed };
     std::uniform_int_distribution<uint64_t> rand{ 0, std::numeric_limits<uint64_t>::max() };
     std::cout << "rand1=" << rand(gen64) << "\n";
@@ -39,21 +39,27 @@ uint64_t HashMethods::full_hash(const Board &b)
         Color c = b.get_color_at(s);
         if (c != C_EMPTY) {
             uint16_t p_idx = (s * NUM_PIECE) + (p - 1) + (6 * c);
-            std::cout << "p_idx=" << p_idx << "\n";
+            //std::cout << "FULLHASH piece_idx=" << p_idx << "\n";
             hash ^= HashParams::piece[PIECE_OFFSET + p_idx];
         }
     }
     Pos ep_pos = b.get_en_passant_pos();
     if (ep_pos.row != 0) {
+        //std::cout << "FULLHASH ep=" << (int)ep_pos.column << "\n";
+
         hash ^= HashParams::piece[EN_PASSANT_OFFSET + ep_pos.column];
     }
     Color c = b.get_next_move();
     if (c == C_WHITE) {
+        //std::cout << "FULLHASH iswhite\n";
+
         hash ^= HashParams::piece[SIDE_TO_MOVE_OFFSET];
     }
     uint8_t rights = b.get_castle_rights();
     for (uint8_t i = 0; i < 4; ++i) {
         if (rights & (1 << i)) {
+            //std::cout << "FULLHASH castle "<< (int)i <<"\n";
+
             hash ^= HashParams::piece[CASTLING_OFFSET + i];
         }
     }
@@ -76,7 +82,7 @@ void HashMethods::make_move(const Board& b, uint64_t &hash, const Move &m, uint8
 
     // add moved piece at dst
     {
-        Piece p = m.promote ? m.piece : m.promote_piece;
+        Piece p = m.promote ? m.promote_piece : m.piece;
         Color c = m.color;
         int sq = m.dst.to_val();
         auto ix = (sq * NUM_PIECE) + (p - 1) + (6 * c);

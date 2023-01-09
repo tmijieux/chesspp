@@ -11,6 +11,8 @@
 #include "./types.hpp"
 #include "./move.hpp"
 
+struct NegamaxEngine;
+
 class BoardRenderer
 {
 private:
@@ -50,7 +52,7 @@ public:
     ~BoardRenderer();
     void draw(const Board& board) const;
 
-    void main_loop(Board &b);
+    void main_loop(Board &b, NegamaxEngine &engine);
 
     void flip_board() { m_flipped_board = !m_flipped_board; m_need_redraw = true;}
 

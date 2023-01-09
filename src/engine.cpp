@@ -142,7 +142,7 @@ int32_t NegamaxEngine::negamax(
     auto &stats = m_stats[max_depth][ply];
 
     // check for 50moves
-    if (b.get_half_move() >= 50) {
+    if (b.get_half_move() >= 100) {
         return 0;
     }
 
@@ -157,7 +157,7 @@ int32_t NegamaxEngine::negamax(
     for (size_t i = 0; i < ply; ++i) {
         if (m_positions_sequence[i] == bkey) {
             // repetition
-            std::cout  <<"repetition!!\n";
+            //std::cout  <<"repetition!!\n";
             return 0; // 0 for draw
         }
     }
@@ -677,6 +677,11 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
     }
 }
 
+
+/**
+ * return  true if search was interrupted by m_stop_required,
+ * and false otherwise
+ */
 bool NegamaxEngine::iterative_deepening(
     Board& b, int max_depth,
     Move *best_move, bool *move_found,
@@ -741,20 +746,11 @@ bool NegamaxEngine::iterative_deepening(
         // }
         *best_move = pvLine[0];
         *move_found = true;
+    
+   
+        display_readable_pv(b, pvLine);
 
-        std::vector<std::string> moves_str;
-        moves_str.reserve(pvLine.size());
-        for (const auto& m : pvLine) {
-            moves_str.emplace_back(move_to_string(m));
-        }
-        // uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
-
-
-        moves_str.clear();
-        moves_str.reserve(pvLine.size());
-        for (const auto& m : pvLine) {
-            moves_str.emplace_back(move_to_uci_string(m));
-        }
+     
         uint64_t total_nodes = m_regular_nodes + m_quiescence_nodes;
         double duration = std::max(t.get_length(), 0.001); // cap at 1ms
         uint64_t nps = (uint64_t)(total_nodes / duration);
@@ -771,6 +767,12 @@ bool NegamaxEngine::iterative_deepening(
                 mate = (mate+1) / 2;
             }
         }
+
+        std::vector<std::string> moves_str;
+        moves_str.reserve(pvLine.size());
+        for (const auto& m : pvLine) {
+            moves_str.emplace_back(move_to_uci_string(m));
+        }
         if (mate != 0) {
             uci_send(
                 "info depth {} score mate {} nodes {} nps {} pv {} time {}\n",
@@ -783,9 +785,18 @@ bool NegamaxEngine::iterative_deepening(
             );
         }
 
-        // display_stats(depth);
-        // display_timers(t);
+        display_stats(depth);
+        display_timers(t);
         display_node_infos(t);
+
+        if (pvLine[pvLine.size() - 1].mate) {
+            break; 
+            // stop searching here
+            // if we found a forced mate
+            // even if it is not the best 
+            // it is either won or lost at 
+            // this point
+        }
 
         previousPvLine = std::move(pvLine);
 
@@ -814,17 +825,22 @@ uint64_t NegamaxEngine::perft(
     if (remaining_depth == 0) {
         return 1;
     }
+    auto ply = max_depth - remaining_depth;
+
     auto key = b.get_key();
-    auto& hashentry = hash.get(key);
-    uint64_t full_key = HashMethods::full_hash(b);
-    if (key != full_key) {
-        std::abort();
-    }
-    if (hashentry.key == key && hashentry.depth == remaining_depth)
-    {
-        res[max_depth - remaining_depth] += hashentry.nummoves;
-        return hashentry.value;
-    }
+    //uint64_t full_key = HashMethods::full_hash(b);
+    //if (key != full_key) {
+    //    std::abort();
+    //}
+    //if (remaining_depth >= 1)
+    //{
+    //    auto& hashentry = hash.get(key);
+    //    if (hashentry.key == key && hashentry.depth == remaining_depth)
+    //    {
+    //        res[ply] += hashentry.nummoves;
+    //        return hashentry.value;
+    //    }
+    //}
     Color clr = b.get_next_move();
 
     MoveList ml;
@@ -861,13 +877,20 @@ uint64_t NegamaxEngine::perft(
             std::cout << move_to_uci_string(move) <<": "<<val<< " "<<move_to_string(move) << "\n";
         }
     }
-    res[max_depth-remaining_depth] += num_legal_move;
-    if (remaining_depth > hashentry.depth) {
-        hashentry.key = key;
-        hashentry.depth = remaining_depth;
-        hashentry.value = total;
-        hashentry.nummoves = num_legal_move;
-    }
+
+    res[ply] += num_legal_move;
+    //if (remaining_depth>=1 ) {
+    //    auto& hashentry = hash.get(key);
+    //    if (remaining_depth > hashentry.depth)
+    //    {
+    //        // save only position with most savings potential
+    //        hashentry.key = key;
+    //        hashentry.depth = remaining_depth;
+    //        hashentry.value = total;
+    //        hashentry.nummoves = num_legal_move;
+    //    }
+
+    //}
     return total;
 }
 
@@ -911,9 +934,10 @@ void NegamaxEngine::do_perft(Board &b, int depth)
     std::fill(res.begin(), res.end(), 0);
     Timer t;
     t.start();
-    int64_t total = perft(b, depth, depth, res, hash);
+    uint64_t total = perft(b, depth, depth, res, hash);
     t.stop();
     double duration = t.get_length();
+    std::cout << "total=" << total << "\n";
     if (duration != 0) {
         std::cout << fmt::format(
             "{} moves in {} seconds ({} moves per seconds)\n",
@@ -1048,5 +1072,20 @@ void NegamaxEngine::display_node_infos(Timer &t)
     m_total_nodes_prev = total;
 
     std::cerr << "\n-----------------\n\n";
+
+}
+void NegamaxEngine::display_readable_pv(Board &b, const MoveList &pvLine)
+{
+    std::vector<std::string> moves_str;
+    moves_str.reserve(pvLine.size());
+    for (const auto& m : pvLine) {
+        moves_str.emplace_back(move_to_string_disambiguate(b, m));
+        b.make_move(m);
+    }
+    for (auto i = pvLine.size(); i > 0; --i)
+    {
+        b.unmake_move(pvLine[i - 1]);
+    }
+    uci_send("info string PV = {}\n", fmt::join(moves_str, " "));
 
 }

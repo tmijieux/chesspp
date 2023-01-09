@@ -68,7 +68,6 @@ private:
     uint32_t m_max_depth;
     uint32_t m_current_max_depth; // iterative deepening;
 
-    Hash<HashEntry> m_hash;
 
     //  current_max_depth, current_depth
     std::map<uint32_t, std::map<uint32_t, Stats>> m_stats;
@@ -122,6 +121,7 @@ public:
         m_running{ false }
     {
     }
+    Hash<HashEntry> m_hash;
 
     void init_hash() { m_hash.init(1000); }
     void clear_hash() { m_hash.clear(); init_hash(); }
@@ -139,6 +139,7 @@ public:
     void display_stats();
     void display_stats(int current_maxdepth);
     void display_node_infos(Timer&);
+    void display_readable_pv(Board& b, const MoveList& pvLine);
 
     int32_t quiesce(Board& b, int color, int32_t alpha, int32_t beta, int depth);
     int32_t negamax(

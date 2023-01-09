@@ -27,6 +27,7 @@ void find_move_to_position(
 
 std::string move_to_string(const Move& m);
 std::string move_to_uci_string(const Move& m);
+std::string move_to_string_disambiguate(Board& b, const Move& m);
 
 
 void generate_queen_move(const Board& b, const Pos& pos, Color clr,

@@ -432,7 +432,7 @@ int try_handle_one_command(
     else if (cmd == "ui")
     {
         BoardRenderer r;
-        r.main_loop(b);
+        r.main_loop(b, engine);
     }
     else if (cmd == "init")
     {

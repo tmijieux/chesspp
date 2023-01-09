@@ -10,15 +10,6 @@ using namespace std;
 
 #undef main // we use console app
 
-void UI_mode()
-{
-    Board board;
-    BoardRenderer renderer;
-
-    board.load_initial_position();
-    renderer.main_loop(board);
-}
-
 int main(int argc, char *argv[])
 {
     std::cout << "Tistou Chess by Thomas Mijieux\n"<<std::flush;

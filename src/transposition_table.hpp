@@ -40,7 +40,7 @@ struct PerftHashEntry {
     uint64_t key;
     uint16_t depth;
     uint64_t value;
-    uint32_t nummoves;
+    uint64_t nummoves;
     PerftHashEntry() :
         key{ 0 },
         depth{ 0 },
