@@ -421,7 +421,6 @@ void BoardRenderer::do_player_move(Board &b, SDL_Event &e)
 void BoardRenderer::main_loop(Board &b, NegamaxEngine &engine)
 {
     bool quit = false;
-    bool down = false;
 
     while (!quit)
     {

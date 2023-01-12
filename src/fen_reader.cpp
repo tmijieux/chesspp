@@ -45,7 +45,7 @@ void fen_read_position(Board &b, std::istream& input)
             }
             continue;
         }
-        if (cur_pos.row < 0) {
+        if (cur_pos.row > 7) {
             break;
         }
 
@@ -235,9 +235,8 @@ std::string write_fen_position(const Board& b)
     buf[x++] = ' ';
     Pos eppos = b.get_en_passant_pos();
     if (eppos.row > 0) {
-        Color clr = b.get_next_move();
         std::string v = pos_to_square_name(eppos);
-        for (auto i = 0; i < v.size(); ++i) {
+        for (size_t i = 0; i < v.size(); ++i) {
             buf[x++] = v[i];
         }
     }

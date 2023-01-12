@@ -58,9 +58,10 @@ struct HashEntry {
     int8_t hashmove_dst;
     Piece promote_piece;
 
-    unsigned lower_bound :1;
-    unsigned upper_bound :1;
-    unsigned exact_score :1;
+    unsigned lower_bound : 1;
+    unsigned upper_bound : 1;
+    unsigned exact_score : 1;
+    unsigned is_null_window : 1;
 
     HashEntry() :
         key{ 0 },
@@ -71,7 +72,8 @@ struct HashEntry {
         promote_piece{ Piece::P_EMPTY },
         lower_bound{ 0 },
         upper_bound{ 0 },
-        exact_score{ 0 }
+        exact_score{ 0 },
+        is_null_window { 0 }
     {
     }
 

@@ -1,5 +1,6 @@
 #include <iostream>
 #include <functional>
+#include <cstdint>
 
 #include <fmt/format.h>
 
@@ -25,11 +26,11 @@ void extract_pv(const Move& m, const MoveList& currentPvLine, MoveList& parentPv
 
 
 int32_t NegamaxEngine::quiesce(
-    Board& b, int color, int32_t alpha, int32_t beta, int ply)
+    Board& b, int color, int32_t alpha, int32_t beta, uint32_t ply)
 {
     int32_t standing_pat = 0;
     {
-        SmartTime st{ m_evaluation_timer };
+        // SmartTime st{ m_evaluation_timer };
         standing_pat = color * evaluate_board(b);
         //m_evaluation[pos_string] = standing_pat;
     }
@@ -53,25 +54,25 @@ int32_t NegamaxEngine::quiesce(
 
     MoveList moveList;
     {
-        SmartTime st{ m_move_generation2_timer };
+        // SmartTime st{ m_move_generation2_timer };
         moveList = generate_pseudo_moves(b, true);
     }
 
     {
-        SmartTime st{ m_move_ordering_mvv_lva_timer };
-        reorder_mvv_lva(b, moveList, 0, moveList.size());
+        // SmartTime st{ m_move_ordering_mvv_lva_timer };
+        reorder_mvv_lva(moveList, 0, moveList.size());
     }
 
     int32_t nodeval = standing_pat;
     for (auto& move : moveList) {
         {
-            SmartTime st{ m_make_move2_timer };
+            // SmartTime st{ m_make_move2_timer };
             b.make_move(move);
         }
         if (b.is_king_checked(move.color))
         {
             {
-                SmartTime st{ m_unmake_move2_timer };
+                // SmartTime st{ m_unmake_move2_timer };
                 b.unmake_move(move);
             }
             move.legal_checked = true;
@@ -89,7 +90,7 @@ int32_t NegamaxEngine::quiesce(
         int32_t pval = piece_value(move.taken_piece);
         if (pval + BIG_DELTA < alpha) {
             {
-                SmartTime st{ m_unmake_move2_timer };
+                // SmartTime st{ m_unmake_move2_timer };
                 b.unmake_move(move);
             }
             //return alpha;
@@ -97,8 +98,8 @@ int32_t NegamaxEngine::quiesce(
         }
         int32_t val = -quiesce(b, -color, -beta, -alpha, ply+1);
         {
-            SmartTime st{ m_unmake_move2_timer };
-            b.unmake_move(move);
+            // SmartTime st{ m_unmake_move2_timer };
+             b.unmake_move(move);
         }
 
         if (val >= beta) {
@@ -118,10 +119,9 @@ int32_t NegamaxEngine::quiesce(
 
 int32_t NegamaxEngine::negamax(
     Board& b,
-    int max_depth, int remaining_depth, int ply,
+    int max_depth, int remaining_depth, uint32_t ply,
     int color,
     int32_t alpha, int32_t beta,
-    MoveList* topLevelOrdering,
     bool internal,
     NodeType &node_type,
     MoveList &parentPvLine
@@ -240,7 +240,7 @@ int32_t NegamaxEngine::negamax(
         // we do not want to go into quiescence if is in check
         stats.num_leaf_nodes += 1;
         m_leaf_nodes += 1;
-        SmartTime st{ m_quiescence_timer };
+        // SmartTime st{ m_quiescence_timer };
         int32_t nodeval = quiesce(b, color, alpha, beta, ply);
         return nodeval;
     }
@@ -267,7 +267,7 @@ int32_t NegamaxEngine::negamax(
         val = -negamax(
             b, max_depth, remaining_depth - 1, ply + 1,
             -color, -beta, -alpha,
-            nullptr, internal, children, currentPvLine
+            internal, children, currentPvLine
         );
         hash_move.mate = (!!hash_move.checks) && children == NO_MOVE;
 
@@ -296,20 +296,15 @@ int32_t NegamaxEngine::negamax(
     MoveList moveList;
     if (!cutoff)
     {
-        if (topLevelOrdering !=  nullptr && topLevelOrdering->size() > 0)
         {
-            moveList = *topLevelOrdering;
-        }
-        else
-        {
-            SmartTime st{ m_move_generation_timer };
+            // SmartTime st{ m_move_generation_timer };
             moveList = generate_pseudo_moves(b);
         }
 
         {
-            SmartTime st{ m_move_ordering_timer };
-            reorder_moves(b, moveList, ply, remaining_depth,
-                          m_killers, has_hash_move, hash_move);
+            // SmartTime st{ m_move_ordering_timer };
+            reorder_moves(*this, b, moveList, ply, remaining_depth,
+                          m_killers, has_hash_move, hash_move, m_history);
         }
 
         for (auto &move : moveList) {
@@ -321,7 +316,7 @@ int32_t NegamaxEngine::negamax(
                 continue;
             }
             {
-                SmartTime st{ m_make_move_timer };
+                // SmartTime st{ m_make_move_timer };
                 b.make_move(move);
                 ++num_move_maked;
             }
@@ -332,7 +327,7 @@ int32_t NegamaxEngine::negamax(
                 move.legal = false;
                 move.evaluation = std::numeric_limits<int32_t>::min();
                 {
-                    SmartTime st{ m_unmake_move_timer };
+                    // SmartTime st{ m_unmake_move_timer };
                     b.unmake_move(move);
                 }
                 continue;
@@ -342,12 +337,27 @@ int32_t NegamaxEngine::negamax(
             move.legal = true;
             ++num_legal_move;
             int32_t val = 0;
+            int32_t r = 0;
+            if (!move.checks && move.see_value <= 0 && !move.killer && num_legal_move > 5) {
+                auto MLsize = moveList.size();
+                r = 1;
+                if (MLsize >= 30 && num_legal_move >= MLsize - 10) {
+                    r = 2;
+                    if (MLsize >= 40
+                        && move.see_value < 0
+                        && num_legal_move >= MLsize - 5) {
+                        r = 3;
+                    }
+
+                }
+            }
+
             if (use_aspiration && remaining_depth >= 2) {
                 stats.num_aspiration_tries += 1;
                 val = -negamax(
-                    b, max_depth, remaining_depth - 1, ply + 1,
+                    b, max_depth, remaining_depth - 1 - r, ply + 1,
                     -color, -alpha-1, -alpha,
-                    nullptr, internal, children, currentPvLine
+                    internal, children, currentPvLine
                 );
                 move.mate = (!!move.checks) && children == NO_MOVE;
 
@@ -369,9 +379,9 @@ int32_t NegamaxEngine::negamax(
                         }
                         // 1/8 , 1/4, 1/2, and eventually 1/1
                         val = -negamax(
-                            b, max_depth, remaining_depth - 1, ply + 1,
+                            b, max_depth, remaining_depth - 1 - r, ply + 1,
                             -color, lower, -alpha,
-                            nullptr, internal, children, currentPvLine
+                            internal, children, currentPvLine
                         );
                         ++k;
                     }
@@ -379,16 +389,16 @@ int32_t NegamaxEngine::negamax(
             }
             else {
                 val = -negamax(
-                    b, max_depth, remaining_depth - 1, ply + 1,
+                    b, max_depth, remaining_depth - 1 - r, ply + 1,
                     -color, -beta, -alpha,
-                    nullptr, internal, children, currentPvLine
+                    internal, children, currentPvLine
                 );
                 move.mate = (!!move.checks) && children == NO_MOVE;
             }
             move.evaluation = val;
 
             {
-                SmartTime st{ m_unmake_move_timer };
+                // SmartTime st{ m_unmake_move_timer };
                 b.unmake_move(move);
             }
             if (m_stop_required) {
@@ -408,7 +418,9 @@ int32_t NegamaxEngine::negamax(
                 if (move.killer) {
                     stats.num_cut_by_killer += 1;
                 }
+
                 if (!move.takes) {
+                    // update killers
                     move.killer = true;
                     move.mate_killer = val >= 20000 - (max_depth+1);
                     bool already_in = false;
@@ -438,6 +450,11 @@ int32_t NegamaxEngine::negamax(
                             killers.erase(killers.end()-1);
                         }
                     }
+
+                    // update history
+                    auto clr = move.color;
+                    size_t idx = clr*64*64 + move.src.to_val()*64 + move.dst.to_val();
+                    m_history[idx] += ply*ply;
                 }
                 break;
             }
@@ -474,11 +491,19 @@ int32_t NegamaxEngine::negamax(
         || (!hashentry.exact_score && !cutoff && raise_alpha);
     // if depth is lower but we have an pv-node
     // while the previous was not a pv-node then replace!
-    //replace = !null_window && replace;
+    if (null_window) {
+        // if in a null windows
+        // we replace if is empty or if the entry is that of a null window
+        // and we would otherwise replace
+        replace = (hashentry.is_null_window && replace) || hashentry.key == 0;
+    } else if (hashentry.is_null_window) {
+        replace = true;
+    }
     if (replace) {
         hashentry.score = nodeval;
         hashentry.depth = remaining_depth;
         hashentry.key = bkey;
+        hashentry.is_null_window = null_window;
         if (found_best_move) {
             hashentry.hashmove_src = best_move.src.to_val();
             hashentry.hashmove_dst = best_move.dst.to_val();
@@ -530,11 +555,11 @@ int32_t NegamaxEngine::negamax(
         }
     }
 
-    if (ply == 0) {
-        std::sort(moveList.begin(), moveList.end(), [](auto& a, auto& b) {
-            return a.evaluation > b.evaluation;
-        });
-        *topLevelOrdering = moveList;
+    // if (ply == 0) {
+    //     std::sort(moveList.begin(), moveList.end(), [](auto& a, auto& b) {
+    //         return a.evaluation > b.evaluation;
+    //     });
+    //     *topLevelOrdering = moveList;
         // full sort for next level of iterative deepening
 
         // if (!internal) {
@@ -545,7 +570,7 @@ int32_t NegamaxEngine::negamax(
         //         std::cout << move_to_string(m) << " "<< m.evaluation<< " \n";
         //     }
         // }
-    }
+    // }
     return nodeval;
 }
 
@@ -555,7 +580,7 @@ void NegamaxEngine::_start_uci_background(Board &b)
     Move best_move;
     GoParams p = m_uci_go_params;
     if (p.depth == 0) {
-        p.depth = 7;
+        p.depth = 200;
     }
     uint64_t time = 0;
     if (p.movetime > 0) {
@@ -594,7 +619,6 @@ void NegamaxEngine::_start_uci_background(Board &b)
         b, p.depth, &best_move, &move_found, time
     );
     m_running = false;
-    bool is_timeout = false;
 
     if (move_found) {
         uci_send_bestmove(best_move);
@@ -690,7 +714,6 @@ bool NegamaxEngine::iterative_deepening(
     *move_found = false;
 
     int color = b.get_next_move() == C_WHITE ? +1 : -1;
-    MoveList topLevelOrdering;
 
     this->set_max_depth(max_depth);
     Timer total_timer;
@@ -714,7 +737,7 @@ bool NegamaxEngine::iterative_deepening(
             b, depth, depth, 0, color,
             -999999, // alpha
             +999999, // beta
-            &topLevelOrdering, false, node_type, pvLine
+            false, node_type, pvLine
         );
 
         if (m_stop_required_by_timeout || max_time_ms > 0) {
@@ -790,11 +813,11 @@ bool NegamaxEngine::iterative_deepening(
         display_node_infos(t);
 
         if (pvLine[pvLine.size() - 1].mate) {
-            break; 
+            break;
             // stop searching here
             // if we found a forced mate
-            // even if it is not the best 
-            // it is either won or lost at 
+            // even if it is not the best
+            // it is either won or lost at
             // this point
         }
 
@@ -819,7 +842,7 @@ std::pair<bool,Move> find_best_move(Board& b)
 
 uint64_t NegamaxEngine::perft(
     Board &b,
-    int max_depth, int remaining_depth,
+    uint32_t max_depth, uint32_t remaining_depth,
     std::vector<uint64_t> &res, Hash<PerftHashEntry> &hash)
 {
     if (remaining_depth == 0) {
@@ -827,7 +850,7 @@ uint64_t NegamaxEngine::perft(
     }
     auto ply = max_depth - remaining_depth;
 
-    auto key = b.get_key();
+    //auto key = b.get_key();
     //uint64_t full_key = HashMethods::full_hash(b);
     //if (key != full_key) {
     //    std::abort();
@@ -926,7 +949,7 @@ std::string human_readable(double value)
     }
 }
 
-void NegamaxEngine::do_perft(Board &b, int depth)
+void NegamaxEngine::do_perft(Board &b, uint32_t depth)
 {
     Hash<PerftHashEntry> hash;
     std::vector<uint64_t> res;
@@ -949,9 +972,7 @@ void NegamaxEngine::do_perft(Board &b, int depth)
             total);
     }
 
-
-
-    for (int i = 0; i < depth; ++i) {
+    for (uint32_t i = 0; i < depth; ++i) {
         uci_send_info_string(
             "num_move for depth {} = {}",
             i, res[i]

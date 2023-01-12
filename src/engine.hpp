@@ -46,10 +46,10 @@ struct Stats {
         num_cutoffs{ 0 },
         num_cut_by_killer{ 0 },
         num_cut_by_hash_move{ 0 },
+        num_leaf_nodes{ 0 },
         num_faillow_node{0},
         num_pvnode{ 0 },
         num_nodes{ 0 },
-        num_leaf_nodes{ 0 },
         num_move_maked{0},
         num_move_skipped{ 0 },
         num_move_generated{ 0 },
@@ -65,6 +65,7 @@ struct NegamaxEngine
 {
 private:
     KillerMoves m_killers;
+    HistoryMoves m_history;
     uint32_t m_max_depth;
     uint32_t m_current_max_depth; // iterative deepening;
 
@@ -120,6 +121,9 @@ public:
         m_stop_required_by_timeout{ false },
         m_running{ false }
     {
+        m_history.resize( 2 * 64 * 64);
+        std::cout  <<"m_history size() == "<<m_history.size() <<"\n";
+        std::fill(m_history.begin(), m_history.end(), 0);
     }
     Hash<HashEntry> m_hash;
 
@@ -141,13 +145,12 @@ public:
     void display_node_infos(Timer&);
     void display_readable_pv(Board& b, const MoveList& pvLine);
 
-    int32_t quiesce(Board& b, int color, int32_t alpha, int32_t beta, int depth);
+    int32_t quiesce(Board& b, int color, int32_t alpha, int32_t beta, uint32_t ply);
     int32_t negamax(
         Board& b,
-        int max_depth, int remaining_depth, int ply,
+        int max_depth, int remaining_depth, uint32_t ply,
         int color,
         int32_t alpha, int32_t beta,
-        MoveList* topLevelOrdering,
         bool internal,
         NodeType &node_type,
         MoveList &parentPvLine
@@ -160,9 +163,9 @@ public:
 
     void set_max_depth(int maxdepth);
     void set_current_maxdepth(int maxdepth) { m_current_max_depth = maxdepth; }
-    uint64_t perft(Board &b, int max_depth, int remaining_depth, 
+    uint64_t perft(Board &b, uint32_t max_depth, uint32_t remaining_depth,
         std::vector<uint64_t> &res, Hash<PerftHashEntry>&);
-    void do_perft(Board &b, int depth);
+    void do_perft(Board &b, uint32_t depth);
 };
 
 

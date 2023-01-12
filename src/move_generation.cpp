@@ -605,7 +605,7 @@ Move generate_move_for_squares(
     MoveList ml;
     add_move_from_position(b, src, ml, false);
     for (const auto& m : ml) {
-        if (m.dst == dst && m.promote_piece==promote_piece) {
+        if (m.dst == dst && m.promote_piece == promote_piece) {
             return m;
         }
     }
@@ -664,7 +664,7 @@ std::string move_to_string(const Move& m)
     res += pos_to_square_name(m.dst);
 
     if (m.promote) {
-        res += "=" + piece_to_move_letter(m.promote_piece);
+        res += std::string("=") + piece_to_move_letter(m.promote_piece);
     }
 
     if (m.mate) {

@@ -45,24 +45,24 @@ public:
         evaluation{-999999},
         killer_freq{0},
         see_value{0},
+        color{C_BLACK},
+        piece{P_INVALID_PIECE},
+        taken_piece{P_EMPTY},
+        promote_piece{ P_EMPTY },
+        en_passant{false},
         killer{false},
         mate_killer{false},
         hash_move{false},
-        en_passant{false},
-        piece{P_INVALID_PIECE},
-        color{C_BLACK},
-        taken_piece{P_EMPTY},
         takes{false},
         castling{false},
-        half_move_before(0),
+        legal{false},
+        legal_checked{false},
         promote{ false },
         checks{ false },
         mate{false},
-        promote_piece{ P_EMPTY },
         m_board_state_before{ 0 },
         m_board_key_before{ 0 },
-        legal{false},
-        legal_checked{false}
+        half_move_before{0}
     {
     }
 
@@ -121,6 +121,7 @@ private:
 using MoveList = std::vector<Move>;
 using MovePtrList = std::vector<Move*>;
 using KillerMoves = std::vector<MoveList>;
+using HistoryMoves = std::vector<uint64_t>;
 
 
 inline constexpr std::string piece_to_move_letter(Piece p) {

@@ -9,14 +9,14 @@
 
 
 void reorder_mvv_lva(
-    const Board& b, MoveList& moveList,
+    MoveList& moveList,
     size_t begin, size_t end)
 {
     std::sort(
-      /*  moveList.begin() + begin,
-        moveList.begin() + end,*/
-        moveList.begin(),
-        moveList.end(),
+        moveList.begin() + begin,
+        moveList.begin() + end,
+        // moveList.begin(),
+        // moveList.end(),
         [](const auto& a, const auto& b) {
             auto ta = piece_value(a.taken_piece);
             auto tb = piece_value(b.taken_piece);
@@ -51,37 +51,54 @@ void reorder_see(Board &b, MoveList &moveList, size_t begin, size_t end)
 
 
 void reorder_moves(
+    NegamaxEngine &engine,
     Board &b, MoveList &moveList, int ply, int remaining_depth,
-    KillerMoves &killers, bool has_hash_move, const Move &hash_move)
+    KillerMoves &killers, bool has_hash_move, const Move &hash_move,
+    const HistoryMoves &history)
 {
     size_t offset = 0;
 
-    bool some_killers = false;
-    size_t startOfKillers = offset;
-    if (!has_hash_move && remaining_depth > 4) {
-        // INTERNAL ITERATIVE DEEPENING
-        int color = b.get_next_move() == C_WHITE ? +1 : -1;
-        size_t length_before = moveList.size();
+    auto size = moveList.size();
 
-        NegamaxEngine engine;
-        engine.set_max_depth(2);
-        NodeType children;
-        MoveList pvLine;
+    // if (!has_hash_move && remaining_depth > 4) {
+    //     // INTERNAL ITERATIVE DEEPENING
+    //     Color clr = b.get_next_move();
+    //     int color = clr == C_WHITE ? +1 : -1;
 
-        int max_depth = std::max(remaining_depth/3, 2);
-        for (int depth = 1; depth <= max_depth; ++depth) {
-            engine.negamax(
-                b, depth, depth, 0, color,
-                -999999, // alpha
-                +999999, // beta
-                &moveList,
-                true,
-                children,
-                pvLine
-            );
-        }
-        return;
-    }
+    //     //NegamaxEngine engine;
+    //     //engine.set_max_depth(2);
+    //     NodeType children = NodeType::PV_NODE;
+    //     MoveList pvLine;
+    //     for (auto &move : moveList) {
+    //         int max_depth = std::max((remaining_depth-1)/3, 2);
+    //         b.make_move(move);
+    //         if (b.is_king_checked(clr)) {
+    //             move.legal_checked = true;
+    //             move.legal = false;
+    //             b.unmake_move(move);
+    //             move.evaluation = -999999;
+    //             continue;
+    //         }
+    //         for (int depth = 1; depth <= max_depth; ++depth) {
+    //             move.evaluation = - engine.negamax(
+    //                 b, depth, depth, 0, color,
+    //                 -999999, // alpha
+    //                 +999999, // beta
+    //                 true,
+    //                 children,
+    //                 pvLine
+    //             );
+    //         }
+    //         b.unmake_move(move);
+    //     }
+    //     std::sort(
+    //         moveList.begin(),
+    //         moveList.end(),
+    //         [](const auto &m1, const auto &m2){
+    //             return m1.evaluation > m2.evaluation;
+    //         });
+    //     return;
+    // }
     if (ply < killers.size() && killers[ply].size() > 0) {
         auto& mykillers = killers[ply];
         for (const auto& killer : mykillers) {
@@ -90,7 +107,6 @@ void reorder_moves(
                     std::swap(moveList[offset], moveList[i]);
                     moveList[offset].killer = true;
                     ++offset;
-                    some_killers = true;
                     break;
                 }
             }
@@ -104,45 +120,12 @@ void reorder_moves(
                 std::swap(moveList[offset], moveList[i]);
                 moveList[offset].killer = true;
                 ++offset;
-                some_killers = true;
                 break;
             }
         }
     }
 
-    // if (some_killers) {
-    //     // put mate killers before other mates
-    //     std::sort(
-    //         moveList.begin()+startOfKillers, moveList.begin()+offset,
-    //         [](const auto& a, const auto& b) {
-    //             if (a.mate_killer && !b.mate_killer) {
-    //                 return true;
-    //             } else if (b.mate_killer && !a.mate_killer) {
-    //                 return false;
-    //             } else {
-    //                 return &a < &b;
-    //             }
-    //         }
-    //     );
-    // }
 
-    // size_t startAt = offset;
-
-    // std::sort(
-    //     moveList.begin()+startAt, moveList.end(),
-    //     [](const auto& a, const auto& b) {
-    //         auto ta = piece_value(a.taken_piece);
-    //         auto tb = piece_value(b.taken_piece);
-    //         if (ta != tb) {
-    //             return ta > tb;
-    //         }
-    //         auto pa = piece_value(a.piece);
-    //         auto pb = piece_value(b.piece);
-    //         return pa < pb;
-    //     }
-    // );
-
-    auto size = moveList.size();
     for (auto i = offset; i < size; ++i) {
         auto& m = moveList[i];
         if (m.takes) {
@@ -156,7 +139,7 @@ void reorder_moves(
 
     std::sort(
         moveList.begin() + offset, moveList.end(),
-        [](auto& a, auto& b) {
+        [&history](auto& a, auto& b) {
             if (a.see_value > b.see_value) {
                 return true;
             }
@@ -175,7 +158,9 @@ void reorder_moves(
             if (!a.mate_killer && b.mate_killer) {
                 return false;
             }
-            return &a < &b;
+            auto idx1 = a.color*64*64+a.src.to_val()*64+a.dst.to_val();
+            auto idx2 = b.color*64*64+b.src.to_val()*64+b.dst.to_val();
+            return history[idx1] > history[idx2];
         }
     );
 
@@ -201,7 +186,6 @@ void reorder_moves(
     // } else {
     //     // INTERNAL ITERATIVE DEEPENING
     //     int color = b.get_next_move() == C_WHITE ? +1 : -1;
-    //     size_t length_before = moveList.size();
 
     //     NegamaxEngine engine;
     //     engine.set_max_depth(2);

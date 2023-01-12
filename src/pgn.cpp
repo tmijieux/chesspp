@@ -179,7 +179,7 @@ Move compute_move_from_san(const std::string& san, Color clr, Board& b)
 
         std::string srcstr = san.substr(begin, i - 1 - begin);
         find_optional_src(srcstr, move.src);
-        find_move_src_for_attacking_piece(b, move);   
+        find_move_src_for_attacking_piece(b, move);
     }
     else {
         int begin = move.piece == P_PAWN ? 0 : 1;
@@ -261,32 +261,31 @@ std::string read_comment(char first, std::istream& s)
     return res;
 }
 
-std::string read_numeric_annotation_glyph(std::istream& s)
+std::string read_numeric_annotation_glyph(std::istream&)
 {
     return "";
 }
 
-std::string read_escape_extension(std::istream& s)
+std::string read_escape_extension(std::istream&)
 {
     return "";
 }
 
 std::string read_symbol_token(std::istream& s)
 {
-    int pos = 0;
+    size_t pos = 0;
     std::string output = "";
     size_t len = s.rdbuf()->in_avail();
 
-    const char glyph[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_+#=:-";
-    while (true) 
+    while (true)
     {
         char c = s.get();
         if ((c >= 'a' && c <= 'z')
             || (c >= 'A' && c <= 'Z')
             || (c >= '0' && c <= '9')
-            || c == '_' || c == '+' 
+            || c == '_' || c == '+'
             || c=='#' || c == '='
-            || c == ':' || c == '-') 
+            || c == ':' || c == '-')
         {
             output += c;
             pos++;
@@ -323,7 +322,6 @@ TokenVec tokenize(const std::string &body)
     std::istringstream ss{body};
     while (ss.rdbuf()->in_avail() > 0) {
         char c = ss.get();
-        int code = (int)c;
 
         if (c  == '"') {
             tokens.emplace_back(T_STRING, read_next_string(ss));

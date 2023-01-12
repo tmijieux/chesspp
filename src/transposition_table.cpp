@@ -13,7 +13,7 @@ uint64_t HashParams::piece[HASH_PARAM_SIZE];
 
 void HashParams::init_params()
 {
-    constexpr uint64_t seed = u64(15925555970513767049 * 3);
+    constexpr uint64_t seed = u64(15925555970513767049UL);
     std::mt19937_64 gen64{ seed };
     std::uniform_int_distribution<uint64_t> rand{ 0, std::numeric_limits<uint64_t>::max() };
     std::cout << "rand1=" << rand(gen64) << "\n";

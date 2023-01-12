@@ -53,8 +53,8 @@ private:
 
 public:
     Board():
-        m_half_move_counter{0},
         m_full_move_counter{1},
+        m_half_move_counter{0},
         m_flags{ 0 },
         m_key{ 0 }
   /*      m_en_passant_file{ 0 },
