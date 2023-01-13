@@ -201,8 +201,8 @@ void Board::make_move(const Move& move)
     }
 
     // ------------------------------------
-    // ----- FULL MOVE COUNTER (not needed because we have depth)??
-    m_full_move_counter += move.color == C_BLACK;
+    // ----- PLY COUNTER (not needed because we have depth)??
+    ++m_ply_count;
 
     // ------------------------------------
     // ----- CHECK STATE (can be computed)
@@ -239,6 +239,6 @@ void Board::unmake_move(const Move& move)
         set_piece_at(rook_src, P_ROOK, move.color);
         set_piece_at(rook_dst, P_EMPTY, C_BLACK);
     }
-    m_full_move_counter -= move.color == C_BLACK;
+    --m_ply_count;
     m_half_move_counter = move.half_move_before;
 }

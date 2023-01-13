@@ -599,19 +599,20 @@ MoveList generate_pseudo_moves(Board& b, bool only_takes)
     return moveList;
 }
 
-Move generate_move_for_squares(
-    Board &b,  const Pos &src, const Pos &dst, Piece promote_piece)
+bool generate_move_for_squares(
+    Board &b,  const Pos &src, const Pos &dst, Piece promote_piece, Move &out)
 {
     MoveList ml;
     add_move_from_position(b, src, ml, false);
     for (const auto& m : ml) {
         if (m.dst == dst && m.promote_piece == promote_piece) {
-            return m;
+            out = m;
+            return true;
         }
     }
+    return false;
     throw chess_exception("unreachable");
 }
-
 
 
 MoveList enumerate_attacks(Board& b, Color to_move)

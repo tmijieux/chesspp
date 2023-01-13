@@ -1,11 +1,11 @@
 #include  <string>
-
+#include "./dialog.hpp"
 #ifdef _WIN32
 
 #include <windows.h>
 #include <shobjidl.h>
 
-bool find_file_path_dialog(const std::string &res)
+bool find_file_path_dialog(std::string &res)
 {
     bool ok = false;
     HRESULT hr = CoInitializeEx(

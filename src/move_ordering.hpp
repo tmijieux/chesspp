@@ -6,7 +6,7 @@
 #include "./board.hpp"
 #include "./move.hpp"
 
-class NegamaxEngine;
+struct NegamaxEngine;
 
 void reorder_mvv_lva(MoveList& moveList, size_t begin, size_t end);
 void reorder_moves(

@@ -60,6 +60,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND WITH_SDL)
     $<TARGET_FILE_DIR:tistouchess>)
 endif(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND WITH_SDL)
 
-target_compile_options(tistouchess PRIVATE -Wall -Wextra)
+# target_compile_options(tistouchess PRIVATE -Wall -Wextra)
 # target_compile_options(tistouchess PRIVATE -fsanitize=address)
 # target_link_options(tistouchess PRIVATE -fsanitize=address)

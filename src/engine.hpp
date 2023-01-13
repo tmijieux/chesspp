@@ -26,6 +26,12 @@ struct Stats {
     uint32_t num_cut_by_hash_move;
     uint32_t num_leaf_nodes;
 
+    uint32_t reduced_by_1;
+    uint32_t reduced_by_2;
+
+    uint32_t reduced_by_1_fail;
+    uint32_t reduced_by_2_fail;
+
     uint32_t num_faillow_node;
     uint32_t num_pvnode;
 
@@ -47,6 +53,10 @@ struct Stats {
         num_cut_by_killer{ 0 },
         num_cut_by_hash_move{ 0 },
         num_leaf_nodes{ 0 },
+        reduced_by_1{0},
+        reduced_by_2{ 0 },
+        reduced_by_1_fail{ 0 },
+        reduced_by_2_fail{ 0 },
         num_faillow_node{0},
         num_pvnode{ 0 },
         num_nodes{ 0 },
@@ -103,6 +113,7 @@ private:
     void reset_timers();
 
     void extract_pv_from_tt(Board& b, MoveList& pv, int depth);
+    void handle_no_move_available(Board &b);
 
     std::vector<uint64_t> m_positions_sequence;//store Zkey
 

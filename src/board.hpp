@@ -21,7 +21,7 @@ class Board
 private:
     uint8_t m_board[32];
     //std::string m_position;
-    uint16_t m_full_move_counter;
+    uint16_t m_ply_count;
     uint8_t m_half_move_counter; // for 50 moves rule
 
     uint32_t m_flags;
@@ -53,7 +53,7 @@ private:
 
 public:
     Board():
-        m_full_move_counter{1},
+        m_ply_count{0},
         m_half_move_counter{0},
         m_flags{ 0 },
         m_key{ 0 }
@@ -81,7 +81,7 @@ public:
 
     bool has_en_passant() const { return ((m_flags >> EN_PASSANT_I) & 0x08) != 0; }
     uint8_t get_half_move() const { return m_half_move_counter ; }
-    uint16_t get_full_move() const { return m_full_move_counter ; }
+    uint16_t get_full_move() const { return m_ply_count+2/2 ; }
     uint32_t get_flags() const { return m_flags;  }
     std::string get_key_string() const { return HashMethods::to_string(get_key()); }
     uint64_t get_key() const { return m_key; }
@@ -125,7 +125,7 @@ public:
         m_flags = (m_flags & mask) ^ (val << EN_PASSANT_I);
     }
     void set_half_move(uint8_t counter) { m_half_move_counter = counter; }
-    void set_full_move(uint8_t counter) { m_full_move_counter = counter; }
+    void set_ply_count(uint16_t counter) { m_ply_count = counter; }
 
     /* load positions */
     void load_initial_position();

@@ -52,8 +52,8 @@ void generate_castle_move(const Board& b, const Pos& pos, Color clr, MoveList& m
 std::string pos_to_square_name(const Pos& p);
 Pos square_name_to_pos(const std::string& squarename);
 
-Move generate_move_for_squares(
-    Board &b,  const Pos &src, const Pos &dst, Piece promote_piece);
+bool generate_move_for_squares(
+    Board &b,  const Pos &src, const Pos &dst, Piece promote_piece, Move &out);
 
 
 #endif // CHESS_MOVE_GENERATION_H

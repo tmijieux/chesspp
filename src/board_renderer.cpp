@@ -320,7 +320,6 @@ void BoardRenderer::draw_candidates_moves() const
         draw_circle(m_renderer, x, y, 21);
         draw_circle(m_renderer, x, y, 20);
         draw_circle(m_renderer, x, y, 19);
-
     }
 }
 
@@ -491,7 +490,7 @@ void BoardRenderer::main_loop(Board &b, NegamaxEngine &engine)
                         b.unmake_move(m);
                     }
                     if (num_legal_moves == 0) {
-                        eval = -20000 + m_history.size();
+                        eval = -20000 + (int32_t)m_history.size();
                     }
                 }
                 engine.clear_hash();

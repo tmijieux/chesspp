@@ -175,7 +175,13 @@ void FenReader::load_position(Board &b, const std::string&fen_position) const
 
     int full_move = 1;
     reader >> full_move;
-    b.set_full_move(full_move);
+    Color clr = b.get_next_move();
+    if (clr == C_WHITE) {
+        b.set_ply_count(2*full_move-2);
+    }
+    else {
+        b.set_ply_count(2*full_move - 1);
+    }
 }
 
 

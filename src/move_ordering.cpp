@@ -102,11 +102,12 @@ void reorder_moves(
     if (ply < killers.size() && killers[ply].size() > 0) {
         auto& mykillers = killers[ply];
         for (const auto& killer : mykillers) {
-            for (size_t i = offset+1; i < moveList.size(); ++i) {
+            for (size_t i = 0; i < size; ++i) {
                 if (moveList[i] == killer) {
-                    std::swap(moveList[offset], moveList[i]);
-                    moveList[offset].killer = true;
-                    ++offset;
+                    moveList[i].killer = true;
+                    if (killer.mate_killer) {
+                        moveList[i].mate_killer = true;
+                    }
                     break;
                 }
             }
@@ -115,11 +116,12 @@ void reorder_moves(
 
     if (ply >= 2 && ply < killers.size() && killers[ply-2].size() > 0) {
         Move& killer = killers[ply-2][0];
-        for (size_t i = offset+1; i < moveList.size(); ++i) {
+        for (size_t i = 0; i < size; ++i) {
             if (moveList[i] == killer) {
-                std::swap(moveList[offset], moveList[i]);
-                moveList[offset].killer = true;
-                ++offset;
+                moveList[i].killer = true;
+                if (killer.mate_killer) {
+                    moveList[i].mate_killer = true;
+                }
                 break;
             }
         }
@@ -129,8 +131,8 @@ void reorder_moves(
     for (auto i = offset; i < size; ++i) {
         auto& m = moveList[i];
         if (m.takes) {
-            //m.see_value = compute_see(b, m);
-            m.see_value = piece_value(m.taken_piece)-piece_value(m.piece);
+            m.see_value = compute_see(b, m);
+            //m.see_value = piece_value(m.taken_piece)-piece_value(m.piece);
         }
         else {
             m.see_value = 0;
@@ -138,69 +140,38 @@ void reorder_moves(
     }
 
     std::sort(
-        moveList.begin() + offset, moveList.end(),
+        moveList.begin(), moveList.end(),
         [&history](auto& a, auto& b) {
             if (a.see_value > b.see_value) {
+                // good captures first
                 return true;
             }
             if (a.see_value < b.see_value) {
+                // bad captures lasts
                 return false;
             }
             if (a.killer && !b.killer) {
+                // killer after good captures
                 return true;
             }
             if (!a.killer && b.killer) {
+                // killer after good captures
                 return false;
             }
             if (a.mate_killer && !b.mate_killer) {
+                // mate killer before killers
                 return true;
             }
             if (!a.mate_killer && b.mate_killer) {
+                // mate killer before killers
                 return false;
             }
+            // rest is ordered by history heuristic
             auto idx1 = a.color*64*64+a.src.to_val()*64+a.dst.to_val();
             auto idx2 = b.color*64*64+b.src.to_val()*64+b.dst.to_val();
             return history[idx1] > history[idx2];
         }
     );
-
-    // if (has_best_move || remaining_depth <= 4) {
-
-    //     auto size = moveList.size();
-    //     for (auto i = offset; i < size; ++i) {
-    //         auto& m = moveList[i];
-    //         if (m.takes) {
-    //             m.see_value = compute_see(b, m);
-    //         }
-    //         else {
-    //             m.see_value = 0;
-    //         }
-    //     }
-
-    //     std::sort(
-    //         moveList.begin() + offset, moveList.end(),
-    //         [](auto& a, auto& b) {
-    //             return a.see_value > b.see_value;
-    //         }
-    //     );
-    // } else {
-    //     // INTERNAL ITERATIVE DEEPENING
-    //     int color = b.get_next_move() == C_WHITE ? +1 : -1;
-
-    //     NegamaxEngine engine;
-    //     engine.set_max_depth(2);
-
-    //     int max_depth = std::max(remaining_depth/3, 2);
-    //     for (int depth = 1; depth <= max_depth; ++depth) {
-    //         engine.negamax(
-    //             b, depth, depth, 0, color,
-    //             -999999, // alpha
-    //             +999999, // beta
-    //             &moveList,
-    //             true
-    //         );
-    //     }
-    // }
 }
 
 
@@ -235,7 +206,7 @@ int32_t compute_see(Board &b, const Move &m)
         }
         if (found) {
             val -= compute_see(b, smallest);
-        } // if not found means there is no takes to this square 
+        } // if not found means there is no takes to this square
     }
     b.unmake_move(m);
     return val;

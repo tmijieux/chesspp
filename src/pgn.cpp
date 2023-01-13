@@ -126,21 +126,23 @@ Move compute_move_from_san(const std::string& san, Color clr, Board& b)
 {
     //Move generate_move_for_squares(
     //    const Board & b, const Pos & src, const Pos & dst, Piece promote_piece);
+    Move move;
     if (san == "O-O") {
         if (clr == C_BLACK)
-            return generate_move_for_squares(b, Pos{ 4,7 }, Pos{ 6,7 }, Piece::P_EMPTY);
+            generate_move_for_squares(b, Pos{ 4,7 }, Pos{ 6,7 }, Piece::P_EMPTY, move);
         else if (clr == C_WHITE)
-            return generate_move_for_squares(b, Pos{ 4,0 }, Pos{ 6,0 }, Piece::P_EMPTY);
+            generate_move_for_squares(b, Pos{ 4,0 }, Pos{ 6,0 }, Piece::P_EMPTY, move);
+        return move;
     }
     else if (san == "O-O-O") {
         if (clr == C_BLACK)
-            return generate_move_for_squares(b, Pos{ 4,7 }, Pos{ 2,7 }, Piece::P_EMPTY);
+            generate_move_for_squares(b, Pos{ 4,7 }, Pos{ 2,7 }, Piece::P_EMPTY, move);
         else if (clr == C_WHITE)
-            return generate_move_for_squares(b, Pos{ 4,0 }, Pos{ 2,0 }, Piece::P_EMPTY);
+            generate_move_for_squares(b, Pos{ 4,0 }, Pos{ 2,0 }, Piece::P_EMPTY, move);
+        return move;
     }
 
     char first_letter = san[0];
-    Move move;
 
     move.piece = get_piece_by_char_pgn(first_letter);
 

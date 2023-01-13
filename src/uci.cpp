@@ -134,7 +134,7 @@ void uci_send_bestmove(const Move &m)
     uci_send("bestmove {}\n", move_to_uci_string(m));
 }
 
-void send_nullmove()
+void uci_send_nullmove()
 {
     uci_send("bestmove 0000\n");
 }

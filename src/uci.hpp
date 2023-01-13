@@ -41,6 +41,8 @@ inline void uci_send(T&& t, K&&... k)
 void uci_main_loop();
 struct Move;
 void uci_send_bestmove(const Move&);
+void uci_send_nullmove();
+
 
 template<typename T, typename ...K>
 inline void uci_send_info_string(T&& info, K&&... k)
