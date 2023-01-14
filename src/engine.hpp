@@ -12,12 +12,35 @@
 #include "./evaluation.hpp"
 #include "./uci.hpp"
 
-enum NodeType {
-    UNDEFINED = 0,
-    PV_NODE,
-    CUT_NODE,
-    ALL_NODE,
-    NO_MOVE,
+
+struct Node {
+    NodeType type;
+    NodeType expected_type;
+
+    int32_t score;
+    uint32_t num_move_maked;
+    uint32_t num_legal_move;
+    uint64_t zkey;
+    bool null_window;
+    bool has_hash_move;
+    bool found_best_move;
+    bool use_aspiration;
+    Move hash_move;
+    Move best_move;
+    MoveList pvLine;
+
+    Node() :
+        type{ NodeType::UNDEFINED },
+        score{ -999999 },
+        num_move_maked{ 0 },
+        num_legal_move{ 0 },
+        zkey{0},
+        null_window{ false },
+        has_hash_move{false},
+        found_best_move{false},
+        use_aspiration{ false }
+    {
+    }
 };
 
 struct Stats {
@@ -100,6 +123,8 @@ private:
     uint64_t m_regular_nodes;
     uint64_t m_leaf_nodes;
     uint64_t m_quiescence_nodes;
+    bool m_has_current_root_evaluation;
+    int32_t m_current_root_evaluation;
 
     uint64_t m_run_id;
     bool m_uci_mode;
@@ -109,13 +134,20 @@ private:
     bool m_stop_required_by_timeout;
     bool m_running;
 
+    std::vector<uint64_t> m_positions_sequence;//store Zkey
+
+
     void _start_uci_background(Board& b);
     void reset_timers();
 
     void extract_pv_from_tt(Board& b, MoveList& pv, int depth);
     void handle_no_move_available(Board &b);
 
-    std::vector<uint64_t> m_positions_sequence;//store Zkey
+    bool lookup_hash(Board &b, Node &node, Stats& stats,
+        int32_t remaining_depth, int32_t ply,
+        int32_t alpha, int32_t beta,
+        Node &parent_node);
+    void update_hash(Node &node, Stats& stats, int remaining_depth);
 
 public:
     NegamaxEngine():
@@ -126,6 +158,8 @@ public:
         m_regular_nodes{ 0 },
         m_leaf_nodes{ 0 },
         m_quiescence_nodes{ 0 },
+        m_has_current_root_evaluation{ false },
+        m_current_root_evaluation{0},
         m_run_id{ 0 },
         m_uci_mode{ false },
         m_stop_required{ false },
@@ -158,14 +192,12 @@ public:
 
     int32_t quiesce(Board& b, int color, int32_t alpha, int32_t beta, uint32_t ply);
     int32_t negamax(
+        Node& parent_node, Node &node,
         Board& b,
         int max_depth, int remaining_depth, uint32_t ply,
         int color,
         int32_t alpha, int32_t beta,
-        bool internal,
-        NodeType &node_type,
-        MoveList &parentPvLine
-        // TranspositionTable &tt,
+        bool internal
     );
     bool iterative_deepening(
         Board& b, int max_depth, Move* bestMove, bool* moveFound,

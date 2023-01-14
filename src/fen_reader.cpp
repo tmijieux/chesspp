@@ -140,6 +140,9 @@ void fen_read_en_passant_position(Board& b, std::istream& input)
             en_passant_pos = Pos{ 0 };
             break;
         }
+        else if (c == ' ') {
+            break;
+        }
         if ('a' <= c && c <= 'h') {
             en_passant_pos.column = c - 'a';
         }

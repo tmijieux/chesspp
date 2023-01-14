@@ -7,6 +7,7 @@
 
 class Board;
 struct Move;
+struct NullMove;
 
 enum HashParamsValues {
     NUM_PIECE = 6+6, // 0->5 black pieces, 6-11 white pieces
@@ -58,9 +59,10 @@ struct HashEntry {
     int8_t hashmove_dst;
     Piece promote_piece;
 
-    unsigned lower_bound : 1;
-    unsigned upper_bound : 1;
-    unsigned exact_score : 1;
+    #ifdef DEBUG
+    std::string fen;
+    #endif
+    NodeType node_type;
     unsigned is_null_window : 1;
 
     HashEntry() :
@@ -70,9 +72,7 @@ struct HashEntry {
         hashmove_src{ 0 },
         hashmove_dst{ 0 },
         promote_piece{ Piece::P_EMPTY },
-        lower_bound{ 0 },
-        upper_bound{ 0 },
-        exact_score{ 0 },
+        node_type{NodeType::UNDEFINED},
         is_null_window { 0 }
     {
     }
@@ -118,6 +118,9 @@ struct HashMethods {
     static uint64_t full_hash(const Board& b);
     static void make_move(const Board& b, uint64_t& hash, const Move& move, uint8_t castle_diff);
     static std::string to_string(uint64_t hash);
+
+    static void make_null_move(const Board& b, uint64_t& hash, const NullMove &m);
+
 };
 
 #endif // CHESS_TRANSPOSITION_TABLE_H

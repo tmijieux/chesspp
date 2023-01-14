@@ -9,11 +9,25 @@ struct Move;
 #include "./types.hpp"
 #include "./board.hpp"
 
+struct NullMove
+{
+public:
+    uint32_t m_board_state_before;
+    uint64_t m_board_key_before;
+    uint8_t half_move_before;
+
+    NullMove(const Board& b)
+    {
+        m_board_state_before = b.get_flags();
+        m_board_key_before = b.get_key();
+        half_move_before = b.get_half_move();
+    }
+};
+
 struct Move
 {
 public:
-    int32_t evaluation;
-    uint64_t killer_freq;
+    int32_t score;
     int32_t see_value;
 
     Pos src;
@@ -42,8 +56,7 @@ public:
     uint8_t half_move_before;
 
     Move():
-        evaluation{-999999},
-        killer_freq{0},
+        score{-999999},
         see_value{0},
         color{C_BLACK},
         piece{P_INVALID_PIECE},

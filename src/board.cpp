@@ -5,6 +5,7 @@
 #include "./move_generation.hpp"
 #include "./board.hpp"
 #include "./transposition_table.hpp"
+#include "./uci.hpp"
 
 void Board::load_position(const std::string& fen_position)
 {
@@ -112,6 +113,8 @@ int8_t Board::compute_king_checked(Color clr)
 
 void Board::make_move(const Move& move)
 {
+    check_valid_state();
+
     #ifdef DEBUG
     if (move.color != get_next_move()) {
         throw std::exception("invalid move for next_to_move state");
@@ -211,15 +214,21 @@ void Board::make_move(const Move& move)
         | (compute_king_checked(C_WHITE) << 1u)
     );
     set_king_checked(checks);
+
+    check_valid_state();
+
 }
 
 void Board::unmake_move(const Move& move)
 {
+    check_valid_state();
+
     // -----------------------------------
     // ------ ALL IRREVERSIBLE STATE -----
     // (EN PASSANT/50-M-CLOCK/CASTLING-RIGHTS)
     m_flags = move.m_board_state_before;
     m_key = move.m_board_key_before;
+    std::string before_unmake = write_fen_position(*this);
 
     // -------------------------------
     // ------ MOVE PIECES AROUND -----
@@ -241,4 +250,90 @@ void Board::unmake_move(const Move& move)
     }
     --m_ply_count;
     m_half_move_counter = move.half_move_before;
+
+    if (!check_valid_state()) {
+        Board b;
+        std::cerr << "before_unmake=" << before_unmake << "\n";
+        b.load_position(before_unmake);
+        console_draw(b);
+
+        std::cerr << "after_unmake=" << this->get_fen_string() << "\n";
+        console_draw(*this);
+        std::cerr << "here\n";
+    }
+}
+
+
+void Board::make_null_move(NullMove& m)
+{
+    check_valid_state();
+
+    ++m_ply_count;
+
+    // ------------------------
+    // --- UPDATE HASH KEY ----
+    HashMethods::make_null_move(*this, m_key, m);
+
+    // -------------------------------
+    // -------- SIDE TO MOVE  --------
+    set_next_move(other_color(get_next_move()));
+
+    // -------------------------------
+    // ------ EN PASSANT STATE -------
+    if (has_en_passant()) {
+        set_en_passant_pos(0);
+    }
+
+    check_valid_state();
+
+}
+
+void Board::unmake_null_move(NullMove& m)
+{
+    check_valid_state();
+
+    --m_ply_count;
+    set_next_move(other_color(get_next_move()));
+    m_key = m.m_board_key_before;
+    m_flags = m.m_board_state_before;
+    m_half_move_counter = m.half_move_before;
+
+    check_valid_state();
+}
+
+bool Board::check_valid_state()
+{
+    uint8_t count_piece[6 * 2] = { 0,0 };
+    for (uint8_t i = 0; i < 64; ++i)
+    {
+        Color clr = get_color_at(i);
+        Piece piece = get_piece_at(i);
+
+        if (clr != C_EMPTY)
+        {
+            ++count_piece[clr * 6 + (piece-1)];
+        }
+    }
+    for (uint8_t c = 0; c < 2; ++c)
+    {
+        if (count_piece[c * 6 + P_PAWN-1] > 8) {
+            return false;
+        }
+        if (count_piece[c * 6 + P_BISHOP-1] > 10) {
+            return false;
+        }
+        if (count_piece[c * 6 + P_KNIGHT-1] > 10) {
+            return false;
+        }
+        if (count_piece[c * 6 + P_ROOK-1] > 10) {
+            return false;
+        }
+        if (count_piece[c * 6 + P_QUEEN-1] > 9) {
+            return false;
+        }
+        if (count_piece[c * 6 + P_KING-1] > 1) {
+            return false;
+        }
+    }
+    return true;
 }

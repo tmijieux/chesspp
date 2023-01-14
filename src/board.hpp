@@ -7,6 +7,7 @@
 
 class Board;
 struct Move;
+struct NullMove;
 
 #include "./types.hpp"
 #include "./transposition_table.hpp"
@@ -66,6 +67,7 @@ public:
     }
 
     /* read board state */
+    bool check_valid_state();
     Piece get_piece_at(const Pos& pos) const;
     Color get_color_at(const Pos& pos) const;
     Color get_next_move() const { return (Color)((m_flags >> NEXT_COLOR_I) & 1); }
@@ -96,6 +98,8 @@ public:
         return (val >> (6 * clr)) & 0x3F;
     }
     std::string get_pos_string() const { return write_fen_position(*this); }
+    std::string get_fen_string() const { return write_fen_position(*this); }
+
     bool is_square_attacked(const Pos& pos, Color clr);
 
 
@@ -135,7 +139,9 @@ public:
     void make_move(const Move& move);
     void unmake_move(const Move& move);
 
-
+    /* dont make a move ! */
+    void make_null_move(NullMove& m);
+    void unmake_null_move(NullMove& m);
 }; // class Board
 
 

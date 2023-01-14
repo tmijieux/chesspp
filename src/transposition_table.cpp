@@ -66,6 +66,18 @@ uint64_t HashMethods::full_hash(const Board &b)
  
     return hash;
 }
+void HashMethods::make_null_move(const Board &b, uint64_t& hash, const NullMove&)
+{
+    // update side to move
+    hash ^= HashParams::piece[SIDE_TO_MOVE_OFFSET];
+
+    if (b.has_en_passant()) // <-- previous state as en passant
+    {
+        // remove old state en passant file state 
+        Pos p = b.get_en_passant_pos();
+        hash ^= HashParams::piece[EN_PASSANT_OFFSET + p.column];
+    }
+}
 
 void HashMethods::make_move(const Board& b, uint64_t &hash, const Move &m, uint8_t castle_diff)
 {
