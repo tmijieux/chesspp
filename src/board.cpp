@@ -113,7 +113,7 @@ int8_t Board::compute_king_checked(Color clr)
 
 void Board::make_move(const Move& move)
 {
-    check_valid_state();
+    //check_valid_state();
 
     #ifdef DEBUG
     if (move.color != get_next_move()) {
@@ -215,13 +215,13 @@ void Board::make_move(const Move& move)
     );
     set_king_checked(checks);
 
-    check_valid_state();
+    //check_valid_state();
 
 }
 
 void Board::unmake_move(const Move& move)
 {
-    check_valid_state();
+    //check_valid_state();
 
     // -----------------------------------
     // ------ ALL IRREVERSIBLE STATE -----
@@ -251,7 +251,7 @@ void Board::unmake_move(const Move& move)
     --m_ply_count;
     m_half_move_counter = move.half_move_before;
 
-    if (!check_valid_state()) {
+ /*   if (!check_valid_state()) {
         Board b;
         std::cerr << "before_unmake=" << before_unmake << "\n";
         b.load_position(before_unmake);
@@ -260,13 +260,13 @@ void Board::unmake_move(const Move& move)
         std::cerr << "after_unmake=" << this->get_fen_string() << "\n";
         console_draw(*this);
         std::cerr << "here\n";
-    }
+    }*/
 }
 
 
 void Board::make_null_move(NullMove& m)
 {
-    check_valid_state();
+    //check_valid_state();
 
     ++m_ply_count;
 
@@ -284,13 +284,13 @@ void Board::make_null_move(NullMove& m)
         set_en_passant_pos(0);
     }
 
-    check_valid_state();
+    //check_valid_state();
 
 }
 
 void Board::unmake_null_move(NullMove& m)
 {
-    check_valid_state();
+    //check_valid_state();
 
     --m_ply_count;
     set_next_move(other_color(get_next_move()));
@@ -298,7 +298,7 @@ void Board::unmake_null_move(NullMove& m)
     m_flags = m.m_board_state_before;
     m_half_move_counter = m.half_move_before;
 
-    check_valid_state();
+    //check_valid_state();
 }
 
 bool Board::check_valid_state()

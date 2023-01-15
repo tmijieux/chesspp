@@ -34,18 +34,18 @@ struct Node {
         score{ -999999 },
         num_move_maked{ 0 },
         num_legal_move{ 0 },
-        zkey{0},
+        zkey{ 0 },
         null_window{ false },
-        has_hash_move{false},
-        found_best_move{false},
+        has_hash_move{ false },
+        found_best_move{ false },
         use_aspiration{ false }
     {
     }
 };
 
 struct Stats {
-    uint32_t num_cutoffs;
     uint32_t num_cut_by_killer;
+    uint32_t num_cut_by_mate_killer;
     uint32_t num_cut_by_hash_move;
     uint32_t num_leaf_nodes;
 
@@ -55,8 +55,10 @@ struct Stats {
     uint32_t reduced_by_1_fail;
     uint32_t reduced_by_2_fail;
 
-    uint32_t num_faillow_node;
-    uint32_t num_pvnode;
+    uint32_t num_cut_nodes;
+    uint32_t num_faillow_nodes;
+    uint32_t num_pv_nodes;
+    uint32_t num_match_expected;
 
     uint32_t num_nodes;
 
@@ -72,16 +74,18 @@ struct Stats {
 
 
     Stats() :
-        num_cutoffs{ 0 },
         num_cut_by_killer{ 0 },
+        num_cut_by_mate_killer{ 0 },
         num_cut_by_hash_move{ 0 },
         num_leaf_nodes{ 0 },
         reduced_by_1{0},
         reduced_by_2{ 0 },
         reduced_by_1_fail{ 0 },
         reduced_by_2_fail{ 0 },
-        num_faillow_node{0},
-        num_pvnode{ 0 },
+        num_cut_nodes{ 0 },
+        num_faillow_nodes{0},
+        num_pv_nodes{ 0 },
+        num_match_expected{ 0 },
         num_nodes{ 0 },
         num_move_maked{0},
         num_move_skipped{ 0 },
@@ -147,6 +151,7 @@ private:
         int32_t remaining_depth, int32_t ply,
         int32_t alpha, int32_t beta,
         Node &parent_node);
+    void update_cut_heuristics(Move& move, Node& node, int32_t ply);
     void update_hash(Node &node, Stats& stats, int remaining_depth);
 
 public:

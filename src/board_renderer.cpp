@@ -505,7 +505,7 @@ void BoardRenderer::main_loop(Board &b, NegamaxEngine &engine)
                     auto& entry = engine.m_hash.get(b.get_key());
                     entry.depth = 2;
                     entry.key = b.get_key();
-                    entry.node_type = PV_NODE;
+                    entry.node_type = NodeType::PV_NODE;
                     entry.score = eval;
                     entry.hashmove_dst = m_history[i - 1].dst.to_val();
                     entry.hashmove_src = m_history[i - 1].src.to_val();

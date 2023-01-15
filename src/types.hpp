@@ -141,17 +141,17 @@ public:
         row = o.row;
         return *this;
     }
-
 };
 
-enum NodeType {
+enum class NodeType : uint8_t {
     UNDEFINED = 0,
     PV_NODE,  // EXACT SCORE
     CUT_NODE, // LOWER BOUND
     ALL_NODE, // UPPER BOUND
-    NO_MOVE,  // ALL_NODE, MATE OR PAT, WITH EXACT SCORE
+    MATE,     // TERMINAL LEAF NODE => MATE (EXACT SCORE)
+    PAT,      // TERMINAL LEAF NODE => DRAW (EXACT SCORE)
+    FIFTY_MOVE, // TERMINAL LEAF NODE => DRAW  (EXACT SCORE)
+    THREE_REPETITION, // TERMINAL LEAF NODE => DRAW  (EXACT SCORE)
 };
-
-
 
 #endif // CHESS_TYPES_H

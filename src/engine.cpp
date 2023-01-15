@@ -13,6 +13,16 @@
 #include "./uci.hpp"
 
 
+bool is_exact_score(NodeType type)
+{
+    return type == NodeType::PV_NODE
+        || type == NodeType::MATE
+        || type == NodeType::PAT
+        || type == NodeType::FIFTY_MOVE
+        || type == NodeType::THREE_REPETITION;
+}
+
+
 void NegamaxEngine::handle_no_move_available(Board &b)
 {
     // probably something is very wrong
@@ -222,7 +232,7 @@ bool NegamaxEngine::lookup_hash(
             );
         }
 #ifdef DEBUG
-        if (had_hash_move && !has_hash_move) {
+        if (had_hash_move && !node.has_hash_move) {
 
             std::string newfen = b.get_fen_string();
             std::string oldfen = hashentry.fen;
@@ -249,55 +259,39 @@ bool NegamaxEngine::lookup_hash(
         }
 
         if (hashentry.depth >= remaining_depth) {
-            if (hashentry.node_type == PV_NODE) {
-                //std::cout << "hash hit!\n";
-                stats.num_hash_hits++;
+            if (is_exact_score(hashentry.node_type )) {
+                ++stats.num_hash_hits;
+                node.score = hashentry.score;
+                if (node.has_hash_move && node.score > alpha && node.score < beta) {
+                    node.pvLine.clear();
+                    extract_pv_from_tt(b, node.pvLine, hashentry.depth);
+                    pnode.pvLine = node.pvLine;
+                }
+                return true;
+            }
+            else if (hashentry.node_type == NodeType::CUT_NODE) {
+                /* node score is lower bound of (lower than) real node score*/
+                /* real score might be greater */
                 if (hashentry.score >= beta) {
-                    node.score = hashentry.score;
-                    //return beta;
-                    return true;
-                }
-                else if (hashentry.score <= alpha) {
-                    //return alpha;
-                    node.score = hashentry.score;
-                    return true;
-                }
-                else {
-                    if (node.has_hash_move) {
-                        node.pvLine.clear();
-                        extract_pv_from_tt(b, node.pvLine, hashentry.depth);
-                        pnode.pvLine= node.pvLine;
-                    }
+                    ++stats.num_hash_hits;
+                    // node.score = beta;
                     node.score = hashentry.score;
                     return true;
                 }
             }
-            else if (hashentry.node_type == ALL_NODE/*upper bound*/) {
-                if (hashentry.score >= beta) {
-                    //std::cout << "hash hit!\n";
-                    stats.num_hash_hits++;
-                    node.score = hashentry.score;
-                    // return beta
-                    return true;
-                }
-                else if (hashentry.score >= alpha) {
-                    //alpha = hashentry.score;
-                }
-            }
-            else if (hashentry.node_type == CUT_NODE /*lower bound*/) {
+            else if (hashentry.node_type == NodeType::ALL_NODE) {
+                /* node score is upper bound of (greater than) real node score*/
+                /* real score might be lower */
                 if (hashentry.score <= alpha) {
-                    stats.num_hash_hits++;
-                    //std::cout << "hash hit!\n";
-                    //return alpha;
+                    ++stats.num_hash_hits;
+                    // node.score = alpha;
                     node.score = hashentry.score;
                     return true;
-                } else if (hashentry.score <= beta) {
-
                 }
             }
         }
     } else if (hashentry.key != 0 && hashentry.key != node.zkey) {
-        stats.num_hash_conflicts++;
+        ++stats.num_hash_conflicts;
     }
     return false;
 }
@@ -307,9 +301,9 @@ void NegamaxEngine::update_hash(
 {
     auto &hashentry = m_hash.get(node.zkey);
 
-    bool replace = hashentry.key == 0 // FIXME must not replace pv
-    || remaining_depth > hashentry.depth
-    || (hashentry.node_type != PV_NODE && node.type == PV_NODE);
+    bool replace = hashentry.key == 0
+        || remaining_depth > hashentry.depth
+        || (!is_exact_score(hashentry.node_type) && is_exact_score(node.type));
 
     // if depth is lower but we have an pv-node
     // while the previous was not a pv-node then replace!
@@ -327,6 +321,7 @@ void NegamaxEngine::update_hash(
         hashentry.depth = remaining_depth;
         hashentry.key = node.zkey;
         hashentry.is_null_window = node.null_window;
+        hashentry.node_type = node.type;
         if (node.found_best_move) {
             hashentry.hashmove_src = node.best_move.src.to_val();
             hashentry.hashmove_dst = node.best_move.dst.to_val();
@@ -338,35 +333,9 @@ void NegamaxEngine::update_hash(
         }
     }
 
-    if (node.type == CUT_NODE) {
-        // cut-node (fail-high)
-        // "A fail-high indicates that the search found something that was "too good".
-        // What this means is that the opponent has some way, already found by the search,
-        // of avoiding this position, so you have to assume that they'll do this.
-        // If they can avoid this position, there is no longer any need to search successors,
-        // since this position won't happen."
-        stats.num_cutoffs += 1;
-        if (replace){
-            hashentry.node_type = CUT_NODE;
-        }
-    } else if (node.type == PV_NODE) {
-        // pv-node (new best move)
-        stats.num_pvnode += 1;
-        if (replace){
-            hashentry.node_type = PV_NODE;
-        }
-    } else {
-        // all-node (fail-low)
-        // "A fail-low indicates that this position was not good enough for us.
-        // We will not reach this position,
-        // because we have some other means of reaching a position that is better.
-        // We will not make the move that allowed the opponent to put us in this position."
-        stats.num_faillow_node += 1;
-        if (replace) {
-            hashentry.node_type = ALL_NODE;
-        }
-    }
-
+    if (node.type == NodeType::CUT_NODE) { ++stats.num_cut_nodes; }
+    else if (node.type == NodeType::ALL_NODE) { ++stats.num_faillow_nodes;  }
+    else if (node.type == NodeType::PV_NODE) { ++stats.num_pv_nodes; }
 }
 
 int32_t compute_late_move_reductions(Node &node, const Move &move, size_t num_moves)
@@ -393,9 +362,62 @@ int32_t compute_late_move_reductions(Node &node, const Move &move, size_t num_mo
     return r;
 }
 
-NodeType expected_node_type(const Node &parent_node, int pos)
+NodeType expected_node_type(const Node &node, bool hashmove)
 {
-    return CUT_NODE;
+    if (node.expected_type == NodeType::PV_NODE && node.type == NodeType::UNDEFINED)
+    {
+        // first child of pv node is expected pv node
+        return NodeType::PV_NODE;
+    }
+    else if (node.type == NodeType::PV_NODE)
+    {
+        // PV NODE siblings are expected cut nodes
+        return NodeType::CUT_NODE;
+    }
+    else if (node.expected_type == NodeType::CUT_NODE)
+    {
+        return NodeType::ALL_NODE;
+    }
+    else if (node.expected_type == NodeType::ALL_NODE)
+    {
+        return NodeType::CUT_NODE;
+    }
+    return NodeType::CUT_NODE;
+}
+
+
+void NegamaxEngine::update_cut_heuristics(Move &move, Node &node, int32_t ply)
+{
+    if (!move.takes) {
+        // update killers
+        move.killer = true;
+        move.mate_killer = move.score >= 20000 - 300;
+        bool already_in = false;
+        if (m_killers.size() < ply + 1) {
+            m_killers.resize(ply + 1);
+        }
+        auto& killers = m_killers[ply];
+        // replace killer
+        for (auto& m : killers) {
+            if (m == move) {
+                already_in = true;
+                break;
+            }
+        }
+
+        if (!already_in) {
+            killers.push_back(move);
+            while (killers.size() > 3) {
+                // pop back
+                killers.erase(killers.begin());
+            }
+        }
+
+        // update history
+        auto clr = move.color;
+        size_t idx = clr * 64 * 64 + move.src.to_val() * 64 + move.dst.to_val();
+        m_history[idx] += ply * ply;
+    }
 }
 
 int32_t NegamaxEngine::negamax(
@@ -415,6 +437,8 @@ int32_t NegamaxEngine::negamax(
 
     // check for 50moves
     if (b.get_half_move() >= 99) {
+        node.type = NodeType::FIFTY_MOVE;
+        node.score = 0;
         return 0;
     }
 
@@ -425,19 +449,24 @@ int32_t NegamaxEngine::negamax(
         m_positions_sequence.resize(ply + 1);
     }
     m_positions_sequence[ply] = zkey;
-    for (size_t i = 0; i < ply; ++i) {
-        if (m_positions_sequence[i] == zkey) {
+    for (size_t i = ply; i > 0; --i) {
+        if (m_positions_sequence[i-1] == zkey) {
             // repetition
             //std::cout  <<"repetition!!\n";
+            node.type = NodeType::THREE_REPETITION;
+            node.score = 0;
+            // this create problems
+            // if position is reached from other sequence of moves
+            // where there is no repetition
+            // and this is stored as best (hash) move
+            // (in a loosing position) in parent node...
             return 0; // 0 for draw
         }
     }
     Color clr = b.get_next_move();
     bool in_check = b.is_king_checked(clr);
-
     auto& stats = m_stats[max_depth][ply];
 
-    //Node node;
     node.zkey = zkey;
     node.null_window = beta == alpha + 1;
     node.found_best_move = false;
@@ -464,30 +493,31 @@ int32_t NegamaxEngine::negamax(
 
     if (node.has_hash_move) {
         Node child;
-        child.expected_type = expected_node_type(node, 0);
+        child.expected_type = expected_node_type(node, true);
         b.make_move(node.hash_move);
 
         node.hash_move.checks = b.is_king_checked(other_color(clr));
         int32_t val = -negamax(
             node, child, b, max_depth, remaining_depth - 1, ply + 1,
             -color, -beta, -alpha, internal );
-        node.hash_move.mate = (!!node.hash_move.checks) && child.type == NO_MOVE;
+        node.hash_move.mate = child.type == NodeType::MATE;
 
         if (val > node.score) {
             node.score = val;
             node.best_move = node.hash_move;
             node.found_best_move = true;
         }
-        if (val > alpha) {
-            alpha = val;
-            node.type = PV_NODE;
-            node.use_aspiration = true;
-            extract_pv(node.hash_move, node.pvLine, pnode.pvLine);
-        }
+
         if (val >= beta) {
             // cut node ! yay !
-            node.type = CUT_NODE;
+            node.type = NodeType::CUT_NODE;
             stats.num_cut_by_hash_move += 1;
+        }
+        else if (val > alpha) {
+            alpha = val;
+            node.type = NodeType::PV_NODE;
+            node.use_aspiration = true;
+            extract_pv(node.hash_move, node.pvLine, pnode.pvLine);
         }
         b.unmake_move(node.hash_move);
 
@@ -496,7 +526,8 @@ int32_t NegamaxEngine::negamax(
     }
 
     MoveList moveList;
-    if (node.type != CUT_NODE)
+    size_t MLsize = 0;
+    if (node.type != NodeType::CUT_NODE)
     {
         {
             // SmartTime st{ m_move_generation_timer };
@@ -508,15 +539,17 @@ int32_t NegamaxEngine::negamax(
             reorder_moves(*this, b, moveList, ply, remaining_depth,
                           m_killers, node.has_hash_move, node.hash_move, m_history);
         }
-        auto MLsize = moveList.size();
+        MLsize = moveList.size();
 
-        for (auto &move : moveList) {
+        for (auto &move : moveList) 
+        {
             if (node.has_hash_move && move == node.hash_move) {
                 continue;
             }
             if (move.legal_checked && !move.legal) {
                 continue;
             }
+
             {
                 // SmartTime st{ m_make_move_timer };
                 b.make_move(move);
@@ -530,26 +563,22 @@ int32_t NegamaxEngine::negamax(
                 {
                     // SmartTime st{ m_unmake_move_timer };
                     b.unmake_move(move);
-
                 }
                 continue;
             }
             move.checks = b.is_king_checked(other_color(clr));
-
             ++node.num_legal_move;
 
             int32_t val = 0;
-
             // aspiration
             if (node.use_aspiration && remaining_depth >= 2)
             {
                 Node child;
-                child.expected_type = CUT_NODE;
+                child.expected_type = NodeType::CUT_NODE;
                 stats.num_aspiration_tries += 1;
                 val = -negamax(
                     node, child, b, max_depth, remaining_depth - 1, ply + 1,
                     -color, -alpha-1, -alpha, internal );
-                move.mate = (!!move.checks) && child.type == NO_MOVE;
 
                 if (val > alpha && val < beta) {
                     int32_t lower = -alpha - 1;
@@ -574,39 +603,38 @@ int32_t NegamaxEngine::negamax(
                         ++k;
                     }
                 }
+                else {
+                    // nothing here ????
+                }
+                move.mate = child.type == NodeType::MATE;
             }
             else {
                 int32_t r = compute_late_move_reductions(node, move, MLsize);
 
                 Node child;
-                child.expected_type = CUT_NODE; // FIXME
+                child.expected_type = expected_node_type(node, false);
 
                 val = -negamax(
                     node, child, b, max_depth, remaining_depth - 1 - r, ply + 1,
                     -color, -beta, -alpha, internal );
-                if (val > alpha) {
-                    // if this is actually not a cut node
-                    // re-search at full depth
-                    val = -negamax(
-                        node, child, b, max_depth, remaining_depth - 1, ply + 1,
-                        -color, -beta, -alpha, internal );
-                    if (r == 1) {
-                        ++stats.reduced_by_1_fail;
+                if (r > 0)
+                {
+                    // if a reduction is done ...
+                    if (val > alpha) {
+                        // ...and this is actually not a cut node
+                        // re-search at full depth
+                        val = -negamax(
+                            node, child, b, max_depth, remaining_depth - 1, ply + 1,
+                            -color, -beta, -alpha, internal);
+                        if (r == 1) { ++stats.reduced_by_1_fail; }
+                        else if (r > 1) { ++stats.reduced_by_2_fail; }
                     }
-                    else if (r > 1) {
-                        ++stats.reduced_by_2_fail;
+                    else {
+                        if (r == 1) { ++stats.reduced_by_1; }
+                        else if (r > 1) { ++stats.reduced_by_2; }
                     }
                 }
-                else {
-                    if (r == 1) {
-                        ++stats.reduced_by_1;
-                    }
-                    else if (r > 1) {
-                        ++stats.reduced_by_2;
-                    }
-
-                }
-                move.mate = (!!move.checks) && child.type == NO_MOVE;
+                move.mate = child.type == NodeType::MATE;
             }
             move.score = val;
 
@@ -625,67 +653,33 @@ int32_t NegamaxEngine::negamax(
                 node.found_best_move = true;
             }
             if (val >= beta) {
-                node.type = CUT_NODE;
-                if (move.killer) {
-                    stats.num_cut_by_killer += 1;
-                }
-
-                if (!move.takes) {
-                    // update killers
-                    move.killer = true;
-                    move.mate_killer = val >= 20000 - (max_depth+1);
-                    bool already_in = false;
-                    if (m_killers.size() < ply+1) {
-                        m_killers.resize(ply+1);
-                    }
-                    auto &killers = m_killers[ply];
-                    // replace killer
-                    for (auto &m : killers) {
-                        if (m == move) {
-                            already_in = true;
-                            break;
-                        }
-                    }
-
-                    if (!already_in) {
-                        killers.push_back(move);
-                        while (killers.size() > 3) {
-                            // pop back
-                            killers.erase(killers.begin());
-                        }
-                    }
-
-                    // update history
-                    auto clr = move.color;
-                    size_t idx = clr*64*64 + move.src.to_val()*64 + move.dst.to_val();
-                    m_history[idx] += ply*ply;
-                }
+                node.type = NodeType::CUT_NODE;
+                if (move.mate_killer) { stats.num_cut_by_mate_killer += 1; }
+                else if (move.killer) { stats.num_cut_by_killer += 1; }
+                update_cut_heuristics(move, node, ply);
                 break;
             }
             if (val > alpha) {
                 alpha = val;
-                node.type = PV_NODE;
+                node.type = NodeType::PV_NODE;
                 node.use_aspiration = true;
                 extract_pv(move, node.pvLine, pnode.pvLine);
             }
         }
     }
-    stats.num_move_skipped += (uint32_t)std::max(moveList.size(),1_u64) - node.num_move_maked;
-    stats.num_move_generated += (uint32_t)moveList.size();
+    stats.num_move_skipped += (uint32_t)std::max(MLsize, 1_u64) - node.num_move_maked;
+    stats.num_move_generated += (uint32_t)MLsize;
     stats.num_move_maked += node.num_move_maked;
     stats.num_nodes += 1;
-
+    stats.num_match_expected += (int)(node.type == node.expected_type);
 
     if (node.num_legal_move == 0) {
-        node.type = NO_MOVE;
-        if (b.is_king_checked(clr)) {
-            // deep trouble here (checkmate) , but the more moves to get there,
-            // the less deep trouble because adversary could make a mistake ;)
-            // ( is to select quickest forced mate)
-            node.score = -20000 + ply;
+        if (in_check) {
+            node.type = NodeType::MATE;
+            node.score = -20000 + ply; // (to select quickest forced mate)
         }
         else {
-            // pat
+            node.type = NodeType::PAT;
             node.score = 0;
         }
     }
@@ -725,7 +719,8 @@ void NegamaxEngine::_start_uci_background(Board &b)
         std::thread([this,time, id]() {
             std::this_thread::sleep_for(std::chrono::milliseconds(time));
             if (this->is_running() && this->m_run_id == id)
-            {
+            { // do no stop if not same run
+              // (case where it was stopped and restarted manually during the timeout)
                 this->m_stop_required_by_timeout = true;
                 this->m_stop_required = true;
             }
@@ -795,8 +790,8 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
             //std::cerr << "did not found entry for pv move in TT => KEY CONFLICT\n";
             break;
         }
-        if (hashentry.node_type != PV_NODE) {
-            //std::cerr << "entry in TT is not PV-node\n";
+        if (!is_exact_score(hashentry.node_type)) {
+            //std::cerr << "entry in TT is not exact score\n";
             break;
         }
         bool has_hash_move = hashentry.hashmove_src != hashentry.hashmove_dst;
@@ -819,7 +814,7 @@ void NegamaxEngine::extract_pv_from_tt(Board& b, MoveList& pv, int depth)
         b.make_move(hash_move);
 
         hash_move.checks = b.is_king_checked(other_color(hash_move.color));
-        hash_move.mate = (hashentry.node_type==PV_NODE) && hashentry.score == 20000 - 1;
+        hash_move.mate = (hashentry.node_type == NodeType::PV_NODE) && hashentry.score == 20000 - 1;
         pv.push_back(hash_move);
         --current_depth;
         if (hash_move.mate)
@@ -891,7 +886,6 @@ bool NegamaxEngine::iterative_deepening(
     this->set_max_depth(max_depth);
     Timer total_timer;
     total_timer.start();
-    //MoveList previousPvLine;
     m_total_nodes_prev = 0;
     m_total_nodes_prev_prev = 0;
 
@@ -903,10 +897,9 @@ bool NegamaxEngine::iterative_deepening(
         m_regular_nodes = 0;
         m_leaf_nodes = 0;
         m_quiescence_nodes = 0;
-        MoveList pvLine;
         Node rootparent, root;
-        root.expected_type = PV_NODE;
-        root.type = PV_NODE;
+        MoveList& pvLine = rootparent.pvLine;
+        root.expected_type = NodeType::PV_NODE;
 
         int32_t score = this->negamax(
             rootparent, root, b, depth, depth, 0, color,
@@ -957,20 +950,17 @@ bool NegamaxEngine::iterative_deepening(
         send_score(score, mate, depth, total_nodes, nps, duration_msec, pvLine);
 
         display_stats(depth);
-        display_timers(t);
-        display_node_infos(t);
+        //display_timers(t);
+        //display_node_infos(t);
 
-        if (pvLine[pvLine.size() - 1].mate) {
+        if (mate != 0) {
             break;
-            // stop searching here
+            // dont bother searching any deeper
             // if we found a forced mate
             // even if it is not the best
             // it is either won or lost at
             // this point
         }
-
-        //previousPvLine = std::move(pvLine);
-
     }
     return false;
 }
@@ -1147,23 +1137,30 @@ void NegamaxEngine::display_stats(int current_maxdepth)
     std::cerr << "stats for current_maxdepth=" << current_maxdepth << "\n";
     for (auto& [depth, stats] : m_stats[current_maxdepth]) {
 
-        double percent_maked = (double)stats.num_move_maked / std::max(stats.num_move_generated, 1u);
-        double percent_skipped = (double)stats.num_move_skipped / std::max(stats.num_move_generated, 1u);
+        double percent_maked = (double)stats.num_move_maked / std::max(stats.num_move_generated, u32(1));
+        double percent_skipped = (double)stats.num_move_skipped / std::max(stats.num_move_generated, u32(1));
 
-        double percent_cutoff = (double)stats.num_cutoffs / std::max(stats.num_nodes, 1u);
-        double percent_faillow = (double)stats.num_faillow_node / std::max(stats.num_nodes, 1u);
+        double percent_cutoff = (double)stats.num_cut_nodes / std::max(stats.num_nodes, u32(1));
+        double percent_faillow = (double)stats.num_faillow_nodes / std::max(stats.num_nodes, u32(1));
+        double percent_expected = (double)stats.num_match_expected / std::max(stats.num_nodes, u32(1));
+
 
         std::cerr << "d=" << depth
             << "\n   NODES total=" << stats.num_nodes
             << " leaf=" << stats.num_leaf_nodes
-            << " cutoffs=" << stats.num_cutoffs
+            << " cutoffs=" << stats.num_cut_nodes
             << " (" << (int)(percent_cutoff * 100.0) << "%) "
 
-            << " pv=" << stats.num_pvnode
-            << " faillow= " << stats.num_faillow_node
+            << " pv=" << stats.num_pv_nodes
+            << " faillow= " << stats.num_faillow_nodes
             << " (" << (int)(percent_faillow * 100.0) << "%) "
             << " cut_by_hash_move= " << stats.num_cut_by_hash_move
             << " cut_by_killer= " << stats.num_cut_by_killer
+            << " cut_by_mate_killer= " << stats.num_cut_by_mate_killer
+
+            << "\n   EXPECTED nodes=" << stats.num_match_expected
+            << " (" << (int)(percent_expected * 100.0) << "%) "
+
 
             << "\n   MOVES generated=" << stats.num_move_generated
             << " maked=" << stats.num_move_maked

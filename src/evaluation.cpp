@@ -48,7 +48,7 @@ int32_t evaluate_board(const Board& b)
     //        // else
     //        value += 1;
     //    }
-    // 
+    //
     //    // add points for square controlled around enemy king
     //    value += 3 * (
     //        std::abs(b.get_king_pos(C_BLACK).row - m.dst.row) <= 1
