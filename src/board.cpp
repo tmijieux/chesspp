@@ -24,7 +24,8 @@ void load_test_position(Board &b, int position)
     case 4: b.load_position("r3k2r/Pppp1ppp/1b3nbN/nP6/BBP1P3/q4N2/Pp1P2PP/R2Q1RK1 w kq - 0 1"); break;
     case 5: b.load_position("rnbq1k1r/pp1Pbppp/2p5/8/2B5/8/PPP1NnPP/RNBQK2R w KQ - 1 8"); break;
     case 6: b.load_position("r4rk1/1pp1qppp/p1np1n2/2b1p1B1/2B1P1b1/P1NP1N2/1PP1QPPP/R4RK1 w - - 0 10"); break;
-    case 7: b.load_position("8/7R/2p1k3/p3P2P/1p6/1P1r4/1KP4r/8 b - - 0 1"); break;
+    case 7: b.load_position("8/7R/2p1k3/p3P2P/1p6/1P1r4/1KP4r/8 b - - 0 1"); break; // mate in 7, some quiet moves
+    case 8: b.load_position("r4rk1/ppq2Np1/1n1pb3/2p4p/8/3B2Q1/PPPB2PP/5RK1 w - - 0 1"); break; // mate in 3 , queen sac first, all checks
     }
 
 }
@@ -62,17 +63,17 @@ Color Board::get_color_at(const Pos& pos) const {
 }
 
 void Board::set_piece_at(const Pos& pos, Piece p, Color c) {
-
+#ifdef CHESS_DEBUG
     if (pos.column > 7 || pos.row > 7) {
         std::abort();
     }
     if (c == C_WHITE && p == P_EMPTY) {
         std::abort();
     }
-    if (p == P_INVALID_PIECE)
-    {
+    if (p == P_INVALID_PIECE) {
         std::abort();
     }
+#endif
     uint8_t x = pos.column + pos.row * 8;
     uint8_t q = x >> 1;
     uint8_t n = x & 1;
@@ -115,7 +116,7 @@ void Board::make_move(const Move& move)
 {
     //check_valid_state();
 
-    #ifdef DEBUG
+    #ifdef CHESS_DEBUG
     if (move.color != get_next_move()) {
         throw std::exception("invalid move for next_to_move state");
     }

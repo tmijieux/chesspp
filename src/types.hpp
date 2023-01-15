@@ -3,6 +3,16 @@
 
 #include <cstdint>
 
+#ifdef CHESS_DEBUG
+#   define TIME_IT( timer ) do { SmartTime __x{(timer)}; 
+#   define UNTIL_THERE } while (0)
+#   define TIME_IT2( timer ) SmartTime __x{(timer)}
+#else
+#   define TIME_IT( timer )
+#   define UNTIL_THERE 
+#   define TIME_IT2( timer )
+#endif
+
 
 class chess_exception : public std::exception {
 private:
@@ -74,7 +84,7 @@ inline constexpr std::uint16_t operator "" _u16(unsigned long long value)
 {
     return static_cast<std::uint16_t>(value);
 }
-/////////////
+
 inline constexpr std::uint32_t u32(unsigned long long value)
 {
     return static_cast<std::uint32_t>(value);

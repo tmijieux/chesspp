@@ -7,9 +7,9 @@ class Board;
 #include "./board.hpp"
 #include "./move.hpp"
 
-MoveList generate_pseudo_moves(Board& b, bool only_takes=false);
-MoveList enumerate_attacks(Board& b, Color to_move);
-MoveList generate_check_evading_moves(Board& b);
+void generate_pseudo_moves(MoveList &out, Board& b, bool only_takes=false);
+void enumerate_attacks(MoveList &out, Board& b, Color to_move);
+void generate_check_evading_moves(MoveList &out, Board& b);
 
 /**
  * pawn_attacks: also return pseudo-capture of pawn on empty square
@@ -30,8 +30,10 @@ std::string move_to_uci_string(const Move& m);
 std::string move_to_string_disambiguate(Board& b, const Move& m);
 
 
+void generate_king_move(const Board& b, const Pos& pos, Color clr,
+                        MoveList& moveList, bool only_takes);
 void generate_queen_move(const Board& b, const Pos& pos, Color clr,
-                         MoveList& moveList, int max_dist, bool only_takes);
+                         MoveList& moveList, bool only_takes);
 void generate_rook_move(const Board& b, const Pos& pos, Color clr,
                         MoveList& moveList, bool only_takes);
 void generate_knight_move(const Board& b, const Pos& pos, Color clr,

@@ -230,52 +230,70 @@ void generate_bishop_move(
     }
 }
 
+Direction knight_directions[8] = {
+    { {-1, -2}, 1 },
+    { {-1, +2}, 1 },
+    { {-2, +1}, 1 },
+    { {-2, -1}, 1 },
+    { {+1, -2}, 1 },
+    { {+1, +2}, 1 },
+    { {+2, +1}, 1 },
+    { {+2, -1}, 1 },
+};
 void generate_knight_move(const Board& b, const Pos& pos, Color clr, MoveList& moveList, bool only_takes)
 {
-    Direction dirs[8] = {
-        { {-1, -2}, 1 },
-        { {-1, +2}, 1 },
-        { {-2, +1}, 1 },
-        { {-2, -1}, 1 },
-        { {+1, -2}, 1 },
-        { {+1, +2}, 1 },
-        { {+2, +1}, 1 },
-        { {+2, -1}, 1 },
-    };
-    for (auto& dir : dirs) {
+    for (auto& dir : knight_directions) {
         generate_move_for_direction(b, pos, clr, dir, moveList, only_takes);
     }
 }
 
+Direction rook_directions[4] = {
+    { {-1, +0}, 8 },
+    { {+1, +0}, 8 },
+    { {+0, +1}, 8 },
+    { {+0, -1}, 8 },
+};
 void generate_rook_move(const Board& b, const Pos& pos, Color clr, MoveList& moveList, bool only_takes)
 {
-    Direction dirs[4] = {
-        { {-1, +0}, 8 },
-        { {+1, +0}, 8 },
-        { {+0, +1}, 8 },
-        { {+0, -1}, 8 },
-    };
-    for (auto& dir : dirs) {
+    for (auto& dir : rook_directions) {
         generate_move_for_direction(b, pos, clr, dir, moveList, only_takes);
     }
 }
 
+constexpr Direction king_directions[8] = {
+ // like rook
+ { {-1, +0}, 1 },
+ { {+1, +0}, 1 },
+ { {+0, +1}, 1 },
+ { {+0, -1}, 1 },
+ // like bishop
+ { {-1, -1}, 1 },
+ { {-1, +1}, 1 },
+ { {+1, -1}, 1 },
+ { {+1, +1}, 1 },
+};
+constexpr Direction queen_directions[8] = {
+    // like rook
+     { {-1, +0}, 8 },
+     { {+1, +0}, 8 },
+     { {+0, +1}, 8 },
+     { {+0, -1}, 8 },
+     // like bishop
+     { {-1, -1}, 8 },
+     { {-1, +1}, 8 },
+     { {+1, -1}, 8 },
+     { {+1, +1}, 8 },
+};
 
-void generate_queen_move(const Board& b, const Pos& pos, Color clr, MoveList& moveList, int max_dist, bool only_takes)
+void generate_king_move(const Board& b, const Pos& pos, Color clr, MoveList& moveList, bool only_takes)
 {
-    Direction dirs[8] = {
-        // like rook
-        { {-1, +0}, max_dist },
-        { {+1, +0}, max_dist },
-        { {+0, +1}, max_dist },
-        { {+0, -1}, max_dist },
-        // like bishop
-        { {-1, -1}, max_dist },
-        { {-1, +1}, max_dist },
-        { {+1, -1}, max_dist },
-        { {+1, +1}, max_dist },
-    };
-    for (auto& dir : dirs) {
+    for (auto& dir : king_directions) {
+        generate_move_for_direction(b, pos, clr, dir, moveList, only_takes);
+    }
+}
+void generate_queen_move(const Board& b, const Pos& pos, Color clr, MoveList& moveList, bool only_takes)
+{
+    for (auto& dir : queen_directions) {
         generate_move_for_direction(b, pos, clr, dir, moveList, only_takes);
     }
 }
@@ -445,7 +463,7 @@ void find_move_to_position(
     {
         MoveList tmpList;
         // maxdist = 1 for enemy king
-        generate_queen_move(b, pos, enemy_clr, tmpList, 1, true);
+        generate_king_move(b, pos, enemy_clr, tmpList, true);
         for (const auto& m : tmpList)
         {
             if (m.taken_piece == P_KING)
@@ -483,11 +501,11 @@ void add_move_from_position(
             generate_rook_move(b, pos, clr, moveList, only_takes);
             break;
         case P_QUEEN:
-            generate_queen_move(b, pos, clr, moveList, 8, only_takes);
+            generate_queen_move(b, pos, clr, moveList, only_takes);
             break;
         case P_KING:
             // like queen_move but max dist of 1
-            generate_queen_move(b, pos, clr, moveList, 1, only_takes);
+            generate_king_move(b, pos, clr, moveList, only_takes);
             if (!only_takes) {
                 generate_castle_move(b, pos, clr, moveList);
             }
@@ -530,7 +548,7 @@ void remove_duplicate_moves(MoveList &ml)
     ml.resize(ml.size() - invalid_count);
 }
 
-MoveList generate_check_evading_moves(Board& b)
+MoveList&& generate_check_evading_moves(Board& b)
 {
     Color clr = b.get_next_move();
     Pos kpos = b.get_king_pos(clr);
@@ -542,8 +560,8 @@ MoveList generate_check_evading_moves(Board& b)
     if (double_check)
     {
         // move king out of the way
-        generate_queen_move(b, kpos, clr, res, 1, false);
-        return res;
+        generate_king_move(b, kpos, clr, res, false);
+        return std::move( res);
     }
     if (king_attacks.size() == 0) {
         throw chess_exception("no checks ??");
@@ -555,8 +573,8 @@ MoveList generate_check_evading_moves(Board& b)
         // capture the knight
         find_move_to_position(b, attacker_pos, res, clr, -1, true);
         // or move out of the way
-        generate_queen_move(b, kpos, clr, res, 1, false);
-        return res;
+        generate_king_move(b, kpos, clr, res, false);
+        return std::move(res);
     }
     else
     {
@@ -576,18 +594,16 @@ MoveList generate_check_evading_moves(Board& b)
             find_move_to_position(b, Pos{ i,j }, res, clr, -1, false);
         }
         // or move out of the way
-        generate_queen_move(b, kpos, clr, res, 1, false);
+        generate_king_move(b, kpos, clr, res, false);
 
         remove_duplicate_moves(res);
-        return res;
+        return std::move( res);
     }
 }
 
-MoveList generate_pseudo_moves(Board& b, bool only_takes)
+void generate_pseudo_moves(MoveList &moveList, Board& b, bool only_takes)
 {
     Color to_move = b.get_next_move();
-
-    MoveList moveList;
     for (uint8_t i = 0; i < 64; ++i) {
         Pos pos{ i };
         Color clr = b.get_color_at(pos);
@@ -596,7 +612,6 @@ MoveList generate_pseudo_moves(Board& b, bool only_takes)
         }
         add_move_from_position(b, pos, moveList, only_takes);
     }
-    return moveList;
 }
 
 bool generate_move_for_squares(
@@ -615,9 +630,8 @@ bool generate_move_for_squares(
 }
 
 
-MoveList enumerate_attacks(Board& b, Color to_move)
+void enumerate_attacks(Board& b, Color to_move, MoveList &moveList)
 {
-    MoveList moveList;
     for (uint8_t i = 0; i < 64; ++i) {
         Pos pos{ i };
         Color clr = b.get_color_at(pos);
@@ -626,7 +640,6 @@ MoveList enumerate_attacks(Board& b, Color to_move)
         }
         add_move_from_position(b, pos, moveList, /*attacks*/true);
     }
-    return moveList;
 }
 
 std::string col_name(uint8_t col) {

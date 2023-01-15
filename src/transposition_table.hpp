@@ -59,7 +59,7 @@ struct HashEntry {
     int8_t hashmove_dst;
     Piece promote_piece;
 
-    #ifdef DEBUG
+    #ifdef CHESS_DEBUG
     std::string fen;
     #endif
     NodeType node_type;

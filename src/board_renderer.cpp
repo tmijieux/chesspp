@@ -478,7 +478,8 @@ void BoardRenderer::main_loop(Board &b, NegamaxEngine &engine)
                 Color clr = b.get_next_move();
                 if (b.is_king_checked(clr))
                 {
-                    MoveList moves = generate_pseudo_moves(b);
+                    MoveList moves;
+                    generate_pseudo_moves(moves, b);
                     int32_t num_legal_moves = 0;
                     for (auto& m : moves)
                     {

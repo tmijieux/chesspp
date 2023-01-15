@@ -12,20 +12,17 @@ void reorder_mvv_lva(
     MoveList& moveList,
     size_t begin, size_t end)
 {
+    for (auto& m : moveList)
+    {
+        m.mvv_lva_value = piece_value(m.taken_piece) * 100 - piece_value(m.piece);
+    }
     std::sort(
         moveList.begin() + begin,
         moveList.begin() + end,
         // moveList.begin(),
         // moveList.end(),
         [](const auto& a, const auto& b) {
-            auto ta = piece_value(a.taken_piece);
-            auto tb = piece_value(b.taken_piece);
-            if (ta != tb) {
-                return ta > tb;
-            }
-            auto pa = piece_value(a.piece);
-            auto pb = piece_value(b.piece);
-            return pa < pb;
+            return a.mvv_lva_value > b.mvv_lva_value;
         });
 }
 
@@ -34,7 +31,8 @@ void reorder_see(Board &b, MoveList &moveList, size_t begin, size_t end)
     for (auto i = begin; i < end; ++i) {
        auto& m = moveList[i];
        if (m.takes) {
-           m.see_value = compute_see(b, m);
+           m.see_value = see_capture(b, m);
+           m.mvv_lva_value = piece_value(m.taken_piece) * 100 - piece_value(m.piece);
        }
        else {
            m.see_value = 0;
@@ -45,10 +43,12 @@ void reorder_see(Board &b, MoveList &moveList, size_t begin, size_t end)
         moveList.begin() + begin,
         moveList.begin() + end,
         [](const auto& a, const auto& b) {
+            if (a.see_value == b.see_value) {
+                return a.mvv_lva_value > b.mvv_lva_value;
+            }
             return a.see_value > b.see_value;
         });
 }
-
 
 void reorder_moves(
     NegamaxEngine &engine,
@@ -127,12 +127,11 @@ void reorder_moves(
         }
     }
 
-
     for (auto i = offset; i < size; ++i) {
         auto& m = moveList[i];
+        m.mvv_lva_value = piece_value(m.taken_piece) * 100 - piece_value(m.piece);
         if (m.takes) {
-            m.see_value = compute_see(b, m);
-            //m.see_value = piece_value(m.taken_piece)-piece_value(m.piece);
+            m.see_value = see_capture(b, m);
         }
         else {
             m.see_value = 0;
@@ -169,45 +168,74 @@ void reorder_moves(
             // rest is ordered by history heuristic
             auto idx1 = a.color*64*64+a.src.to_val()*64+a.dst.to_val();
             auto idx2 = b.color*64*64+b.src.to_val()*64+b.dst.to_val();
-            return history[idx1] > history[idx2];
+            auto h1 = history[idx1];
+            auto h2 = history[idx2];
+            if (h1 == h2) {
+                return a.mvv_lva_value > b.mvv_lva_value;
+            }
+            return h1 > h2;
         }
     );
 }
 
+bool get_smallest_attacker(Board& b, const Pos &dst, Move& move)
+{
+    MoveList moveList;
+    int32_t value = 0;
+    Color clr = b.get_next_move();
+    find_move_to_position(b, dst, moveList, clr , -1, true);
+    if (moveList.size() > 0)
+    {
+        int32_t min_piece_value = 999999;
+        bool found = false;
+        for (auto& candidate : moveList) {
+            // // check legality here ?
+            // b.make_move(candidate);
+            // candidate.legal_checked = true;
+            // candidate.legal = !b.is_king_checked(clr);
+            // b.unmake_move(candidate);
+            // if (!candidate.legal) { continue; }
+            int32_t value = piece_value(candidate.piece);
+            if (value < min_piece_value) {
+                min_piece_value = value;
+                move = candidate;
+                found = true;
+            }
+        }
+        return found;
+    }
+    return false;
+}
 
+int32_t compute_see(Board &b, const Pos& dst)
+{
+    Piece p = b.get_piece_at(dst);
+    if (p == P_EMPTY)
+    {
+        return 0;
+    }
+    int32_t value = 0;
+
+    // find enemy move
+    Move move;
+    bool found = get_smallest_attacker(b, dst, move);
+    if (found) {
+        int32_t just_captured = piece_value(move.taken_piece);
+        b.make_move(move);
+        value = std::max(0, just_captured - compute_see(b, dst));
+        b.unmake_move(move);
+    } // if not found means there is no takes to this square
+    return value;
+}
 
 /**
  * SEE: Static Exchange Evaluation
  */
-int32_t compute_see(Board &b, const Move &m)
+int32_t see_capture(Board &b, const Move &capture)
 {
-    if (m.taken_piece == P_EMPTY) {
-        std::cout << "invalid see(1)\n";
-    }
-    int32_t val = piece_value(m.taken_piece);
-    const Pos &dst = m.dst;
-    b.make_move(m);
-
-    // find enemy move
-    MoveList moveList;
-    find_move_to_position(b, dst, moveList, b.get_next_move(), -1, true);
-    if (moveList.size() > 0)
-    {
-        Move smallest;
-        int32_t min_piece_value = 9999999;
-        bool found = false;
-        for (const auto &MM : moveList) {
-            int32_t value = piece_value(MM.piece);
-            if (value < min_piece_value) {
-                min_piece_value = value;
-                smallest = MM;
-                found = true;
-            }
-        }
-        if (found) {
-            val -= compute_see(b, smallest);
-        } // if not found means there is no takes to this square
-    }
-    b.unmake_move(m);
-    return val;
+    int32_t value = 0;
+    b.make_move(capture);
+    value = piece_value(capture.taken_piece) - compute_see(b, capture.dst);
+    b.unmake_move(capture);
+    return value;
 }

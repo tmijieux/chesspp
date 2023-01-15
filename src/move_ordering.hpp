@@ -14,6 +14,6 @@ void reorder_moves(
     Board &b, MoveList &moveList , int current_depth, int remaining_depth,
     KillerMoves &killers, bool has_hash_move, const Move &hash_move, const HistoryMoves &history);
 void reorder_see(Board& b, MoveList& moveList, size_t begin, size_t end);
-int32_t compute_see(Board &b, const Move &m);
+int32_t see_capture(Board &b, const Move &m);
 
 #endif // CHESS_MOVE_ORDERING_H

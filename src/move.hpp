@@ -29,6 +29,7 @@ struct Move
 public:
     int32_t score;
     int32_t see_value;
+    int32_t mvv_lva_value;
 
     Pos src;
     Pos dst;
@@ -58,6 +59,7 @@ public:
     Move():
         score{-999999},
         see_value{0},
+        mvv_lva_value{ 0 },
         color{C_BLACK},
         piece{P_INVALID_PIECE},
         taken_piece{P_EMPTY},

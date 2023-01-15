@@ -139,10 +139,9 @@ void uci_send_nullmove()
     uci_send("bestmove 0000\n");
 }
 
-MoveList parse_moves(Board& b, const StringList& tokens, size_t begin, size_t end, bool apply_to_board)
+void parse_moves(MoveList &collected_moves, Board& b, const StringList& tokens, 
+                size_t begin, size_t end, bool apply_to_board)
 {
-    MoveList collected_moves;
-
     for (auto j = begin; j < end; ++j)
     {
         const auto& move = tokens[j];
@@ -177,14 +176,11 @@ MoveList parse_moves(Board& b, const StringList& tokens, size_t begin, size_t en
             throw chess_exception(msg);
         }
     }
-    return collected_moves;
 }
 
 
-GoParams parse_go_params(Board &b, StringList& tokens)
+void parse_go_params(GoParams &p, Board &b, StringList& tokens)
 {
-    GoParams p;
-
     size_t i = 1;
     while (i < tokens.size())
     {
@@ -234,7 +230,7 @@ GoParams parse_go_params(Board &b, StringList& tokens)
         }
         else if (cmd == "searchmoves")
         {
-            p.searchmoves = parse_moves(b, tokens, i+1, tokens.size(), false);
+            parse_moves(p.searchmoves, b, tokens, i+1, tokens.size(), false);
             i = tokens.size();
         }
         else
@@ -242,7 +238,6 @@ GoParams parse_go_params(Board &b, StringList& tokens)
             ++i;
         }
     }
-    return p;
 }
 
 
@@ -291,7 +286,8 @@ void handle_position_cmd(Board &b, const StringList &tokens)
     if (i >= tokens.size() - 1 || tokens[i] != "moves") {
         return;
     }
-    parse_moves(b, tokens, i + 1, tokens.size(), true);
+    MoveList ml;
+    parse_moves(ml, b, tokens, i + 1, tokens.size(), true);
 }
 
 void print_help()
@@ -396,7 +392,8 @@ int try_handle_one_command(
             engine.stop();
             return 0;
         }
-        GoParams params = parse_go_params(b, tokens);
+        GoParams params;
+        parse_go_params(params, b, tokens);
         engine.set_uci_mode(true, params);
         engine.start_uci_background(b);
     }

@@ -35,7 +35,7 @@ target_link_libraries(tistouchess
   PRIVATE
   fmt::fmt-header-only
 )
-
+target_compile_definitions(tistouchess PUBLIC "$<$<CONFIG:DEBUG>:CHESS_DEBUG>")
 if (WITH_SDL)
   target_compile_options(tistouchess PRIVATE -DCHESS_ENABLE_SDL)
   target_link_libraries(tistouchess

@@ -25,6 +25,7 @@ struct Node {
     bool has_hash_move;
     bool found_best_move;
     bool use_aspiration;
+    bool in_check;
     Move hash_move;
     Move best_move;
     MoveList pvLine;
@@ -38,7 +39,8 @@ struct Node {
         null_window{ false },
         has_hash_move{ false },
         found_best_move{ false },
-        use_aspiration{ false }
+        use_aspiration{ false },
+        in_check{ false }
     {
     }
 };
@@ -144,7 +146,7 @@ private:
     void _start_uci_background(Board& b);
     void reset_timers();
 
-    void extract_pv_from_tt(Board& b, MoveList& pv, int depth);
+    void extract_pv_from_tt(Board& b, MoveList& pv, int depth, int ply);
     void handle_no_move_available(Board &b);
 
     bool lookup_hash(Board &b, Node &node, Stats& stats,
@@ -184,7 +186,7 @@ public:
     bool is_running() const { return m_running; }
     void start_uci_background(Board& b);
 
-    void set_uci_mode(bool uci_mode, GoParams& params)
+    void set_uci_mode(bool uci_mode, const GoParams& params)
     {
         m_uci_mode = uci_mode;
         m_uci_go_params = params;
@@ -193,9 +195,9 @@ public:
     void display_stats();
     void display_stats(int current_maxdepth);
     void display_node_infos(Timer&);
-    void display_readable_pv(Board& b, const MoveList& pvLine);
+    void display_readable_pv(Board& b, const MoveList& pvLine, int32_t score);
 
-    int32_t quiesce(Board& b, int color, int32_t alpha, int32_t beta, uint32_t ply);
+    int32_t quiesce(Node &node, Board& b, int color, int32_t alpha, int32_t beta, uint32_t ply);
     int32_t negamax(
         Node& parent_node, Node &node,
         Board& b,
