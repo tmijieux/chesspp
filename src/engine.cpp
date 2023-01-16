@@ -24,11 +24,11 @@ bool is_exact_score(NodeType type)
 
 void send_currmove(int depth, const Move &move, int number)
 {
-    //if (depth < 9) { return; }
-    //uci_send(
-    //    "info depth {} currmove {} currmovenumber {}\n",
-    //    depth, move_to_uci_string(move), number
-    //);
+    if (depth < 9) { return; }
+    uci_send(
+       "info depth {} currmove {} currmovenumber {}\n",
+       depth, move_to_uci_string(move), number
+    );
 }
 
 
@@ -77,50 +77,72 @@ void extract_pv(const Move& m, const MoveList& currentPvLine, MoveList& parentPv
 }
 
 int32_t NegamaxEngine::quiesce(
-    Node &node, Board& b, int color, int32_t alpha, int32_t beta, uint32_t ply)
+    Node &node, Board& b, int color, int32_t alpha, int32_t beta, uint32_t ply, uint32_t qply)
 {
     int32_t standing_pat = 0;
-    TIME_IT(m_evaluation_timer);
-    standing_pat = color * evaluate_board(b);
-    UNTIL_THERE;
+    // standing_pat means doing nothing
+    // basically stopping exchange because
+    // it is not worth anymore and would
+    // give up a greater piece against a small one
+    // if we are in check we cannot standpat because
+    // we may be forced to do a loosing capture
 
-
+    bool allow_standpat = !node.in_check;
     if (m_stop_required) {
-        return std::max(standing_pat, beta); // fail-high immediately
-        // return beta
+        return beta; // fail-high immediately
     }
 
+    if (allow_standpat) {
+        TIME_IT(m_evaluation_timer);
+        standing_pat = color * evaluate_board(b);
+        UNTIL_THERE;
 
-    if (standing_pat + 4000 < alpha) {
-        return standing_pat;
-        //return alpha;
+        if (m_stop_required) {
+            return std::max(standing_pat, beta);
+            // return beta
+        }
+
+        if (standing_pat + 4000 < alpha) {
+            return standing_pat;
+            //return alpha;
+        }
+
+        m_quiescence_nodes += 1;
+        if (standing_pat >= beta) {
+            // way better to do nothing !!
+            return standing_pat;
+            //return beta;
+        }
+
+        if (standing_pat > alpha) {
+            alpha = standing_pat;
+        }
+        node.score = standing_pat;
     }
-
-    m_quiescence_nodes += 1;
-    if (standing_pat >= beta) {
-        // here we assume that standing pat is the score of doing nothing
-
-        return standing_pat;
-        //return beta;
-    }
-
-    if (standing_pat > alpha) {
-        alpha = standing_pat;
+    else {
+        node.score = -999999;
     }
 
     MoveList moveList;
     TIME_IT(m_move_generation2_timer);
-    generate_pseudo_moves(moveList, b, true);
+    generate_pseudo_moves(moveList, b,  allow_standpat);
     UNTIL_THERE;
 
 
     TIME_IT(m_move_ordering_mvv_lva_timer);
     // quick ordering
-    reorder_mvv_lva(moveList, 0, moveList.size());
+    if (allow_standpat) {
+        reorder_mvv_lva(moveList, 0, moveList.size());
+    } else {
+        reorder_moves(
+            *this, b, moveList, ply, -1, m_killers,
+            false, node.hash_move, m_history
+        );
+    }
     //reorder_see(b, moveList, 0, moveList.size());
     UNTIL_THERE;
 
-    int32_t nodeval = standing_pat;
+    int32_t num_legal_move = 0;
     for (auto& move : moveList) {
         TIME_IT(m_make_move2_timer);
         b.make_move(move);
@@ -134,36 +156,54 @@ int32_t NegamaxEngine::quiesce(
             b.unmake_move(move);
             continue;
         }
+        ++num_legal_move;
 
         int32_t BIG_DELTA = 975;
         if (move.promote) {
             BIG_DELTA += 775;
         }
         int32_t pval = piece_value(move.taken_piece);
-        if (pval + BIG_DELTA < alpha) {
+        if (allow_standpat && ((pval + BIG_DELTA) < alpha)) {
             TIME_IT2(m_unmake_move2_timer);
             b.unmake_move(move);
             //return alpha;
             return standing_pat;
         }
         Node child;
-        int32_t val = -quiesce(node, b, -color, -beta, -alpha, ply+1);
+        child.in_check = b.is_king_checked(other_color(move.color));
+        int32_t val = -quiesce(child, b, -color, -beta, -alpha, ply+1, qply+1);
         TIME_IT(m_unmake_move2_timer);
         b.unmake_move(move);
         UNTIL_THERE;
         if (val >= beta) {
             update_cut_heuristics(move, node, ply);
             //return beta;
+            node.type = NodeType::CUT_NODE;
+            node.score = val;
+
             return val;
         }
-        if (val > nodeval) {
-            nodeval = val;
+        if (val > node.score) {
+            node.score = val;
+            node.type = NodeType::PV_NODE;
+        }
+        move.score = val;
+        if (m_stop_required) {
+            if (node.type == NodeType::UNDEFINED) {
+                node.type = NodeType::CUT_NODE;
+            }
+            return node.score;
         }
         if (val > alpha) {
             alpha = val;
         }
     }
-    return nodeval;
+
+    if (!allow_standpat && num_legal_move == 0) {
+        node.score = -20000 + ply;
+        node.type = NodeType::MATE;
+    }
+    return node.score;
 }
 
 
@@ -369,9 +409,9 @@ void NegamaxEngine::update_cut_heuristics(Move &move, Node &node, int32_t ply)
         move.killer = true;
         bool was_mate_killer = move.mate_killer;
         move.mate_killer = move.score >= 20000 - 300;
-        if (move.mate_killer && !was_mate_killer) {
-            std::cerr << fmt::format("\nfound new mate killer={} ply={}\n", move_to_string(move), ply);
-        }
+        // if (move.mate_killer && !was_mate_killer) {
+        //     std::cerr << fmt::format("\nfound new mate killer={} ply={}\n", move_to_string(move), ply);
+        // }
         bool already_in = false;
         if (m_killers.size() < ply + 1) {
             m_killers.resize(ply + 1);
@@ -462,8 +502,8 @@ int32_t NegamaxEngine::negamax(
         stats.num_leaf_nodes += 1;
         m_leaf_nodes += 1;
         TIME_IT2(m_quiescence_timer);
-        int32_t nodeval = quiesce(node, b, color, alpha, beta, ply);
-        return nodeval;
+        node.score = quiesce(node, b, color, alpha, beta, ply, 0);
+        return node.score;
     }
     //if (remaining_depth <= 0)
     //{
@@ -529,7 +569,7 @@ int32_t NegamaxEngine::negamax(
         }
         if (ply == 0)
         {
-            //std::cout << fmt::format("score={}\n", node.hash_move.score);
+            std::cout << fmt::format("score={}\n", node.hash_move.score);
         }
     }
 
@@ -537,7 +577,6 @@ int32_t NegamaxEngine::negamax(
     size_t MLsize = 0;
     if (node.type != NodeType::CUT_NODE)
     {
-
         TIME_IT(m_move_generation_timer);
         generate_pseudo_moves(moveList, b);
         UNTIL_THERE;
@@ -586,9 +625,9 @@ int32_t NegamaxEngine::negamax(
                 int32_t r = compute_late_move_reductions(node, remaining_depth, move, MLsize);
                 if (ply == 0)
                 {
-                    //send_currmove(max_depth, move, node.num_legal_move);
-                    //std::cerr << fmt::format("depth={} move={} aspiration see={} r={} ",
-                    //                        max_depth, move_to_string(move), move.see_value, r);
+                    send_currmove(max_depth, move, node.num_legal_move);
+                    std::cerr << fmt::format("depth={} move={} aspiration see={} r={}\n",
+                                           max_depth, move_to_string(move), move.see_value, r);
                 }
                 val = -negamax(
                     node, child, b, max_depth, remaining_depth - 1 - r, ply + 1,
@@ -629,9 +668,9 @@ int32_t NegamaxEngine::negamax(
                 int32_t e = 0;
                 if (ply == 0)
                 {
-                    //send_currmove(max_depth, move, node.num_legal_move + 1);
-                    //std::cerr << fmt::format("depth={} move={} r={} e={} see={} ", 
-                    //                        max_depth, move_to_string(move), r,e, move.see_value);
+                    send_currmove(max_depth, move, node.num_legal_move + 1);
+                    std::cerr << fmt::format("depth={} move={} r={} e={} see={} \n",
+                                           max_depth, move_to_string(move), r,e, move.see_value);
                 }
 
                 Node child;
@@ -663,7 +702,7 @@ int32_t NegamaxEngine::negamax(
             move.score = val;
             if (ply == 0)
             {
-                //std::cout << fmt::format("score={}\n", move.score);
+                std::cout << fmt::format("score={}\n", move.score);
             }
 
             TIME_IT(m_unmake_move_timer)

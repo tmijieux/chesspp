@@ -197,7 +197,7 @@ public:
     void display_node_infos(Timer&);
     void display_readable_pv(Board& b, const MoveList& pvLine, int32_t score);
 
-    int32_t quiesce(Node &node, Board& b, int color, int32_t alpha, int32_t beta, uint32_t ply);
+    int32_t quiesce(Node &node, Board& b, int color, int32_t alpha, int32_t beta, uint32_t ply, uint32_t qply);
     int32_t negamax(
         Node& parent_node, Node &node,
         Board& b,
