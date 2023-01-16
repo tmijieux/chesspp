@@ -548,20 +548,19 @@ void remove_duplicate_moves(MoveList &ml)
     ml.resize(ml.size() - invalid_count);
 }
 
-MoveList&& generate_check_evading_moves(Board& b)
+void generate_check_evading_moves(MoveList &res, Board& b)
 {
     Color clr = b.get_next_move();
     Pos kpos = b.get_king_pos(clr);
     MoveList king_attacks;
     find_move_to_position(b, kpos, king_attacks, other_color(clr), 2, true);
     bool double_check = king_attacks.size() > 1;
-    MoveList res;
 
     if (double_check)
     {
         // move king out of the way
         generate_king_move(b, kpos, clr, res, false);
-        return std::move( res);
+        return;
     }
     if (king_attacks.size() == 0) {
         throw chess_exception("no checks ??");
@@ -574,7 +573,7 @@ MoveList&& generate_check_evading_moves(Board& b)
         find_move_to_position(b, attacker_pos, res, clr, -1, true);
         // or move out of the way
         generate_king_move(b, kpos, clr, res, false);
-        return std::move(res);
+        return;
     }
     else
     {
@@ -597,7 +596,6 @@ MoveList&& generate_check_evading_moves(Board& b)
         generate_king_move(b, kpos, clr, res, false);
 
         remove_duplicate_moves(res);
-        return std::move( res);
     }
 }
 

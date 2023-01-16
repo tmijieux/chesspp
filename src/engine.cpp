@@ -24,11 +24,11 @@ bool is_exact_score(NodeType type)
 
 void send_currmove(int depth, const Move &move, int number)
 {
-    if (depth < 9) { return; }
-    uci_send(
-        "info depth {} currmove {} currmovenumber {}\n",
-        depth, move_to_uci_string(move), number
-    );
+    //if (depth < 9) { return; }
+    //uci_send(
+    //    "info depth {} currmove {} currmovenumber {}\n",
+    //    depth, move_to_uci_string(move), number
+    //);
 }
 
 
@@ -64,7 +64,6 @@ void NegamaxEngine::handle_no_move_available(Board &b)
         uci_send_bestmove(ml[0]);
     }
 }
-
 
 void extract_pv(const Move& m, const MoveList& currentPvLine, MoveList& parentPvLine)
 {
@@ -252,12 +251,12 @@ bool NegamaxEngine::lookup_hash(
 }
 
 void NegamaxEngine::update_hash(
-    Node &node, Stats &stats, int remaining_depth)
+    Node &node, Stats &stats, int depth)
 {
     auto &hashentry = m_hash.get(node.zkey);
 
     bool replace = hashentry.key == 0
-        || remaining_depth > hashentry.depth
+        || depth > hashentry.depth
         || (!is_exact_score(hashentry.node_type) && is_exact_score(node.type));
 
     // if depth is lower but we have an pv-node
@@ -270,10 +269,19 @@ void NegamaxEngine::update_hash(
     } else if (hashentry.is_null_window) {
         replace = true;
     }
+    //if (node.found_best_move && (node.best_move.mate||node.best_move.pat)) {
+    //    replace = true;
+    //    depth = 999999;
+    //    // when a mate in 1 ply is found
+    //    // we are in winning position
+    //    // so store winning position with `infinite` depth
+    //    // because this is a `real` terminal node
+    //}
+
     if (replace) {
         hashentry.score = node.score;
         //hashentry.fen = b.get_fen_string();
-        hashentry.depth = remaining_depth;
+        hashentry.depth = depth;
         hashentry.key = node.zkey;
         hashentry.is_null_window = node.null_window;
         hashentry.node_type = node.type;
@@ -310,8 +318,10 @@ int32_t compute_late_move_reductions(Node &node, int remaining_depth, const Move
     if (remaining_depth > 2
         && !move.checks
         && !move.killer
-        && move.see_value <= 0
-        && node.num_legal_move > 5)
+        && move.see_value <= 0 // only quiet or loosing capture ??
+        // maybe i should not reduce captures
+        && node.num_legal_move > 5
+        && !move.promote)
     {
         r = 1;
         if (num_moves >= 30 && node.num_legal_move >= num_moves - 10)
@@ -357,7 +367,11 @@ void NegamaxEngine::update_cut_heuristics(Move &move, Node &node, int32_t ply)
     if (!move.takes) {
         // update killers
         move.killer = true;
+        bool was_mate_killer = move.mate_killer;
         move.mate_killer = move.score >= 20000 - 300;
+        if (move.mate_killer && !was_mate_killer) {
+            std::cerr << fmt::format("\nfound new mate killer={} ply={}\n", move_to_string(move), ply);
+        }
         bool already_in = false;
         if (m_killers.size() < ply + 1) {
             m_killers.resize(ply + 1);
@@ -466,7 +480,10 @@ int32_t NegamaxEngine::negamax(
         Node child;
         child.expected_type = expected_node_type(node, true);
         if (ply == 0) {
-            send_currmove(max_depth, node.hash_move, 1);
+            //send_currmove(max_depth, node.hash_move, 1);
+            //std::cerr << fmt::format(
+            //    "depth={} move={} HASHMOVE ",
+            //    max_depth, move_to_string(node.hash_move));
         }
 
         b.make_move(node.hash_move);
@@ -482,7 +499,9 @@ int32_t NegamaxEngine::negamax(
             -color, -beta, -alpha, internal );
         b.unmake_move(node.hash_move);
 
+        node.hash_move.score = val;
         node.hash_move.mate = child.type == NodeType::MATE;
+        node.hash_move.pat = child.type == NodeType::PAT;
 
         if (val > node.score) {
             node.score = val;
@@ -507,6 +526,10 @@ int32_t NegamaxEngine::negamax(
             && node.expected_type == NodeType::ALL_NODE
             && node.num_legal_move > 6) {
             node.use_aspiration = true;
+        }
+        if (ply == 0)
+        {
+            //std::cout << fmt::format("score={}\n", node.hash_move.score);
         }
     }
 
@@ -556,16 +579,17 @@ int32_t NegamaxEngine::negamax(
             // aspiration
             if (node.use_aspiration && remaining_depth >= 2 && !move.checks)
             {
-                if (ply == 0)
-                {
-                    send_currmove(max_depth, move, node.num_legal_move);
-                    std::cerr << fmt::format("move = {}, aspiration, see={}\n", move_to_string(move), move.see_value);
-                }
                 Node child;
                 child.expected_type = NodeType::CUT_NODE;
                 stats.num_aspiration_tries += 1;
 
                 int32_t r = compute_late_move_reductions(node, remaining_depth, move, MLsize);
+                if (ply == 0)
+                {
+                    //send_currmove(max_depth, move, node.num_legal_move);
+                    //std::cerr << fmt::format("depth={} move={} aspiration see={} r={} ",
+                    //                        max_depth, move_to_string(move), move.see_value, r);
+                }
                 val = -negamax(
                     node, child, b, max_depth, remaining_depth - 1 - r, ply + 1,
                     -color, -alpha-1, -alpha, internal );
@@ -597,6 +621,7 @@ int32_t NegamaxEngine::negamax(
                     // nothing here ????
                 }
                 move.mate = child.type == NodeType::MATE;
+                move.pat = child.type == NodeType::PAT;
             }
             else {
                 int32_t r = compute_late_move_reductions(node, remaining_depth, move, MLsize);
@@ -604,9 +629,9 @@ int32_t NegamaxEngine::negamax(
                 int32_t e = 0;
                 if (ply == 0)
                 {
-                    send_currmove(max_depth, move, node.num_legal_move + 1);
-
-                    std::cerr << fmt::format("move = {}, r = {}, e={} see={}\n", move_to_string(move), r,e, move.see_value);
+                    //send_currmove(max_depth, move, node.num_legal_move + 1);
+                    //std::cerr << fmt::format("depth={} move={} r={} e={} see={} ", 
+                    //                        max_depth, move_to_string(move), r,e, move.see_value);
                 }
 
                 Node child;
@@ -633,11 +658,12 @@ int32_t NegamaxEngine::negamax(
                     }
                 }
                 move.mate = child.type == NodeType::MATE;
+                move.pat = child.type == NodeType::PAT;
             }
             move.score = val;
             if (ply == 0)
             {
-                std::cout << fmt::format("score = {}\n", move.score);
+                //std::cout << fmt::format("score={}\n", move.score);
             }
 
             TIME_IT(m_unmake_move_timer)

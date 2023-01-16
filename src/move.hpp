@@ -4,8 +4,6 @@
 struct Move;
 
 #include <vector>
-
-
 #include "./types.hpp"
 #include "./board.hpp"
 
@@ -50,6 +48,7 @@ public:
     unsigned promote : 1;
     unsigned checks : 1;
     unsigned mate : 1;
+    unsigned pat : 1;
 
     // remember some of state of board before move
     uint32_t m_board_state_before;
@@ -58,7 +57,7 @@ public:
 
     Move():
         score{-999999},
-        see_value{0},
+        see_value{ 0 },
         mvv_lva_value{ 0 },
         color{C_BLACK},
         piece{P_INVALID_PIECE},
@@ -75,6 +74,7 @@ public:
         promote{ false },
         checks{ false },
         mate{false},
+        pat{false},
         m_board_state_before{ 0 },
         m_board_key_before{ 0 },
         half_move_before{0}
@@ -91,7 +91,7 @@ public:
     inline bool operator==(const Move& o)
     {
         return dst == o.dst
-            && src ==o.src 
+            && src ==o.src
             && piece == o.piece
             && promote == o.promote
             && promote_piece == o.promote_piece;
@@ -231,9 +231,5 @@ inline constexpr Piece get_piece_by_char_fen(char c)
         return P_INVALID_PIECE;
     }
 }
-
-
-
-
 
 #endif // CHESS_MOVE_H
